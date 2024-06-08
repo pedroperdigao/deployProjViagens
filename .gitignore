@@ -1,2 +1,5 @@
 
 frontend/package-lock.json
+
+# Local Netlify folder
+.netlify
