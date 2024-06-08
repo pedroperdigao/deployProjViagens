@@ -1,0 +1,40 @@
+/* ./src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+body {
+    height: 100vh;
+ }
+ 
+ #app, #app > div {
+    height: 100%;
+  }
+
+.pac-container {
+    z-index: 1060 !important;
+}
+
+/* width*/
+::-webkit-scrollbar {
+  width: 10px;
+  height: 80%;
+}
+
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  margin-top: 1rem  0;
+
+}
+
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+} 

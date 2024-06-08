@@ -1,0 +1,11 @@
+/* Import Roboto font */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+
+/* Apply Roboto font to all elements */
+* {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 15px;
+}
+
+/* Additional styles for specific elements or classes can be added here */
