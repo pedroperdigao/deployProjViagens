@@ -221,7 +221,6 @@ const handleFileInput = (event) => {
     };
 
     reader.readAsDataURL(file);
-    console.log('File uploaded:', fileInput.value.files[0]);
 };
 
 const handleDrop = (event) => {
@@ -235,7 +234,6 @@ const handleDrop = (event) => {
     };
 
     reader.readAsDataURL(file);
-    console.log('File uploaded:', file);
 };
 
 const handleFileUpload = async (file) => {

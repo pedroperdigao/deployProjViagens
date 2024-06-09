@@ -281,12 +281,9 @@ const handleFileSelection = (event) => {
     }
 };
 
-const uploadImages = async (event) => {
-    //const files = event.target.files;
+const uploadImages = async () => {
     const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
     const uploadPromises = [];
-
-    console.log(files.value);
 
     for (let i = 0; i < files.value.length; i++) {
         const file = files.value[i];
@@ -296,13 +293,11 @@ const uploadImages = async (event) => {
 
         if (!validImageTypes.includes(file.type)) {
             toast.error('Invalid file type. Please upload an image file');
-            return;
-        }
-        else if (file.size > 5 * 1024 * 1024) {
+            continue;
+        } else if (file.size > 5 * 1024 * 1024) {
             toast.error('Image size exceeds 5MB. Please upload a smaller image');
-            return;
-        }
-        else {
+            continue;
+        } else {
             const storagePath = `photos/${tripId}/${file.name}`;
             const storageReference = storageRef(storage, storagePath);
 
@@ -324,10 +319,10 @@ const uploadImages = async (event) => {
         await Promise.all(uploadPromises);
         toast.success('All images uploaded successfully');
         closeInserImageModal();
+        fetchPhotos();
     } catch (error) {
         toast.error('Error uploading one or more images');
     }
-
 };
 
 const fetchPhotos = async () => {
@@ -423,8 +418,6 @@ const downloadPhoto = async (url) => {
 };
 
 const isOrganizer = computed(() => {
-    console.log("==========> currentUserId.value: ", currentUserId.value);
-    console.log("==========> organizerId.value: ", organizerId.value);
 
     return currentUserId.value === organizerId.value;
 });

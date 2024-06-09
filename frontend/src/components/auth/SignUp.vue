@@ -117,9 +117,11 @@ import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, setDoc, addDoc, collection, updateDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'vue-router';
 import CryptoJS from 'crypto-js';
-import folderImage from '@/assets/user-photo.png';
+import defaultProfilePhoto from '@/assets/user-photo.png';
 import { useToast } from 'vue-toastification';
 
+const auth = getAuth();
+const firestore = getFirestore();
 const firstName = ref('');
 const lastName = ref('');
 const username = ref('');
@@ -141,6 +143,10 @@ const phoneNumberValid = ref(true);
 const passwordValid = ref(false);
 const confirmPasswordValid = ref(false);
 const termsValid = ref(false);
+const image = ref(null);
+const fileInput = ref(null);
+let uploadedFile = null;
+let storageReference; // Declared storageReference
 
 const errorMessage = ({
     firstName: '',
@@ -178,7 +184,7 @@ const validateForm = () => {
     if (firstName.value.trim() === '') {
         firstNameValid.value = false;
         errorMessage.firstName = 'First name is required.';
-    } else if (!/^[a-zA-Z]+$/.test(firstName.value.trim())) {
+    } else if (/\d/.test(firstName.value.trim())) {
         firstNameValid.value = false;
         errorMessage.firstName = 'First name must contain only letters.';
     } else if (firstName.value.trim().length < 3) {
@@ -193,7 +199,7 @@ const validateForm = () => {
     if (lastName.value.trim() === '') {
         lastNameValid.value = true;
         errorMessage.lastName = '';
-    } else if (!/^[a-zA-Z]+$/.test(lastName.value.trim())) {
+    } else if (/\d/.test(firstName.value.trim())) {
         lastNameValid.value = false;
         errorMessage.lastName = 'Last name must contain only letters.';
     } else if (lastName.value.trim().length < 3) {
@@ -303,15 +309,14 @@ const signUp = async () => {
         return;
     }
 
-    const auth = getAuth();
-    const firestore = getFirestore();
-
     try {
         const userData = await createUserWithEmailAndPassword(auth, email.value, password.value);
         const user = userData.user;
 
         // Encrypt the password before storing it
         const encryptedPassword = CryptoJS.AES.encrypt(password.value, 'secret').toString();
+
+        const photoURL = image.value || defaultProfilePhoto;
 
         // Add user data to Firestore
         const userDocRef = doc(firestore, 'users', user.uid);
@@ -323,12 +328,14 @@ const signUp = async () => {
             phoneNumber: phoneNumber.value.trim() === '' ? '' : phoneNumber.value,
             country: country.value,
             encryptedPassword: encryptedPassword,
-            photoURL: folderImage
+            photoURL: photoURL
         });
 
+        if (uploadedFile) {
+            await handleFileUpload(uploadedFile); 
+        }
+
         //Add default categories to User
-
-
         const categories = [
             { name: 'Museum', color: '#FFD700', userId: user.uid },
             { name: 'SPA', color: '#FF6347', userId: user.uid },
@@ -367,9 +374,9 @@ const signUp = async () => {
     }
 };
 
-const image = ref(null);
-const fileInput = ref(null);
-let uploadedFile = null;
+const setDefaultProfilePhoto = () => {
+    image.value = defaultProfilePhoto;
+};
 
 const handleButtonClick = () => {
     fileInput.value.click();
@@ -399,6 +406,26 @@ const handleDrop = (event) => {
 
     reader.readAsDataURL(file);
 };
+
+const handleFileUpload = async (file) => {
+    try {
+        // Create a reference to the desired path in Firebase Storage
+        const fileRef = storageReference.child(`profilePictures/${file.name}`);
+
+        // Upload the file to Firebase Storage
+        await uploadBytes(fileRef, file);
+
+        // Get the download URL of the uploaded file
+        const imageUrl = await getDownloadURL(fileRef);
+
+        // Update the image ref with the URL
+        image.value = imageUrl;
+
+    } catch (error) {
+        console.error('Error uploading profile picture:', error);
+    }
+};
+
 </script>
 
 
