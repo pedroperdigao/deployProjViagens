@@ -71,24 +71,10 @@
                     <div v-if="phoneNumber.trim() !== '' && !phoneNumberValid" class="invalid-feedback">
                         {{ errorMessage.phoneNumber }}</div>
                 </div>
-                
-                
+
                 <div class="col-md-6">
-                    <label for="inputState" class="form-label">Country <span class="text-danger">*</span></label>
-                    <input v-model="searchQueryCountry" @input="handleInput"
-                        @click="showResults = filteredCountries.length > 0" type="text" placeholder="Your country"
-                        class="form-control " id="country"
-                        :class="{ 'is-valid': countryValid && formSubmitted, 'is-invalid': !countryValid && formSubmitted }"
-                        required>
-                    <div style="width: 15%" v-show="showResults" class="autocomplete-results"
-                        :class="{ show: showResults }">
-                        <div v-for="country in filteredCountries" :key="country.name"
-                            @click="selectCountry(country.name)" class="result-item">
-                            {{ country.flag }} {{ country.name }}
-                        </div>
-                    </div>
-                    <div class="valid-feedback">Looks good!</div>
-                    <div class="invalid-feedback">{{ errorMessage.country }}</div>
+                    <label for="country" class="form-label">Country</label>
+                    <input v-model="country" type="text" class="form-control" id="country" placeholder="Country">
                 </div>
 
                 <div class="col-md-12">
@@ -127,20 +113,17 @@ const lastName = ref("");
 const username = ref("");
 const phoneNumber = ref("");
 const email = ref("");
-const searchQueryCountry = ref('');
-
+const country = ref('');
 const formSubmitted = ref(false);
 const firstNameValid = ref(false);
 const lastNameValid = ref(true);
 const usernameValid = ref(false);
 const phoneNumberValid = ref(true);
-const countryValid = ref(false);
 
 const errorMessage = ({
     firstName: '',
     lastName: '',
     username: '',
-    country: '',
     phoneNumber: ''
 });
 
@@ -154,13 +137,11 @@ const validateForm = () => {
     errorMessage.lastName = '';
     errorMessage.username = '';
     errorMessage.phoneNumber = '';
-    errorMessage.country = '';
 
     firstNameValid.value = true;
     lastNameValid.value = true;
     usernameValid.value = true;
     phoneNumberValid.value = true;
-    countryValid.value = true;
 
     // Validate First Name
     if (firstName.value.trim() === '') {
@@ -172,9 +153,9 @@ const validateForm = () => {
     } else if (firstName.value.trim().length < 3) {
         firstNameValid.value = false;
         errorMessage.firstName = 'First name must be at least 3 characters.';
-    } else if (firstName.value.trim().length > 12) {
+    } else if (firstName.value.trim().length > 20) {
         firstNameValid.value = false;
-        errorMessage.firstName = 'First name must be at most 12 characters.';
+        errorMessage.firstName = 'First name must be at most 20 characters.';
     }
 
     // Validate Last Name
@@ -187,9 +168,9 @@ const validateForm = () => {
     } else if (lastName.value.trim().length < 3) {
         lastNameValid.value = false;
         errorMessage.lastName = 'Last name must be at least 3 characters.';
-    } else if (lastName.value.trim().length > 12) {
+    } else if (lastName.value.trim().length > 20) {
         lastNameValid.value = false;
-        errorMessage.lastName = 'Last name must be at most 12 characters.';
+        errorMessage.lastName = 'Last name must be at most 20 characters.';
     }
 
     // Validate Username
@@ -199,9 +180,9 @@ const validateForm = () => {
     } else if (username.value.trim().length < 3) {
         usernameValid.value = false;
         errorMessage.username = 'Username must be at least 3 characters.';
-    } else if (username.value.trim().length > 16) {
+    } else if (username.value.trim().length > 36) {
         usernameValid.value = false;
-        errorMessage.username = 'Username must be at most 16 characters.';
+        errorMessage.username = 'Username must be at most 36 characters.';
     }
 
     // Validate Phone Number (Optional)
@@ -219,24 +200,7 @@ const validateForm = () => {
         errorMessage.phoneNumber = '';
     }
 
-    // Validate Country
-    const selectedCountry = searchQueryCountry.value.trim();
-    if (searchQueryCountry.value.trim() === '') {
-        countryValid.value = false;
-        errorMessage.country = 'Please select a country.';
-    } else {
-        // Check if the selected country exists in the list of countries
-        const countryExists = countries.value.some(country => country.name.toLowerCase() === selectedCountry.toLowerCase());
-        if (!countryExists) {
-            countryValid.value = false;
-            errorMessage.country = 'Please select a valid country.';
-        } else {
-            countryValid.value = true;
-            errorMessage.country = '';
-        }
-    }
-
-    if (!firstNameValid.value || !lastNameValid.value || !usernameValid.value || !phoneNumberValid.value || !countryValid.value) {
+    if (!firstNameValid.value || !lastNameValid.value || !usernameValid.value || !phoneNumberValid.value) {
         return false;
     }
 
@@ -316,7 +280,7 @@ const saveChanges = async () => {
             username: username.value,
             phoneNumber: phoneNumber.value || '', // Ensure that phoneNumber is not null
             email: email.value,
-            country: searchQueryCountry.value,
+            country: country.value,
         };
 
         // If there is an image, upload it to Firestore
@@ -338,37 +302,7 @@ const saveChanges = async () => {
     }
 };
 
-const countries = ref([]);
-const showResults = ref(false);
-const filteredCountries = ref([]);
-
-const getAllCountries = async () => {
-    try {
-        const response = await fetch('https://restcountries.com/v3.1/all');
-        const countriesData = await response.json();
-
-        countries.value = countriesData.map((country) => {
-            const { name, flag } = country;
-            return {
-                name: name.common,
-                flag: flag,
-            };
-        });
-
-        console.log('Countries:', countries.value);
-    } catch (error) {
-        console.error('Erro ao buscar países:', error);
-    }
-};
-
-const selectCountry = (country) => {
-    searchQueryCountry.value = country;
-    showResults.value = false;
-};
-
 onMounted(() => {
-    getAllCountries();
-    
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             const userDocRef = doc(firestore, 'users', user.uid);
@@ -383,7 +317,7 @@ onMounted(() => {
                     username.value = currentUser.value.username;
                     phoneNumber.value = currentUser.value.phoneNumber
                     email.value = currentUser.value.email
-                    searchQueryCountry.value = currentUser.value.country;
+                    country.value = currentUser.value.country;
                 } else {
                     console.error('User document does not exist');
                 }
@@ -407,16 +341,16 @@ const cancelChanges = () => {
 };
 
 const phoneVerification = () => {
-  toast.warning("Feature under development");
+    toast.warning("Feature under development");
 };
 
 const resetPassword = () => {
-  toast.warning("Feature under development");
+    toast.warning("Feature under development");
 };
 
 
 const activityLog = () => {
-  toast.warning("Feature under development");
+    toast.warning("Feature under development");
 };
 </script>
 
@@ -454,25 +388,5 @@ const activityLog = () => {
 label {
     font-weight: bold;
     margin-bottom: 5px;
-}
-
-/* Styles for the autocomplete component */
-.autocomplete-results {
-    position: absolute;
-    z-index: 999;
-    background-color: white;
-    border: 1px solid #ccc;
-    max-height: 200px;
-    overflow-y: auto;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.result-item {
-    padding: 8px;
-    cursor: pointer;
-}
-
-.autocomplete-results.show {
-    display: block;
 }
 </style>

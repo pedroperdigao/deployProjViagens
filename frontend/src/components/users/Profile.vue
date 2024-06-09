@@ -19,9 +19,7 @@
         <!-- div to fix profilePicture loading -->
       </div>
       <div v-else class="card shadow m-5 w-25">
-        <img v-if="countryFlag !== ''" class="country-img" :style="{ 'background-image': 'url(' + countryFlag + ')' }">
-        <div v-eslse class="mt-4"></div>
-        <img class="w-44 h-44 rounded-full mx-auto mt-4 mb-3"
+        <img class="w-44 h-44 rounded-full mx-auto mt-16 mb-3"
           :src="currentUser ? currentUser.photoURL : 'https://placehold.co/128x128'" alt="Profile Picture">
         <div class="text-center">
           <h4 class="font-semibold text-gray-800">{{ currentUser ? currentUser.firstName + ' ' + currentUser.lastName :
@@ -30,7 +28,7 @@
         </div>
       </div>
       <!-- Profile information -->
-      <div class="m-5" style="width: 70vh; color: #4b4b4b;">
+      <div class="m-5" style="width: 90vh; color: #4b4b4b;">
         <div class="d-flex bg-blue-50 rounded-t-lg">
           <div class="p-3" style="width: 40vh">First Name</div>
           <div class="p-3">:</div>
@@ -94,8 +92,6 @@ const auth = getAuth();
 const storage = getStorage();
 const currentUser = auth.currentUser ? ref(auth.currentUser) : ref(null);
 const loading = ref(false);
-const countries = ref([]);
-const countryFlag = ref('');
 let storageReference; // Declared storageReference
 
 onMounted(async () => {
@@ -127,39 +123,6 @@ onMounted(async () => {
 
   storageReference = storageRef(storage, ''); // Initialize storageReference after storage is available
 });
-
-const getAllCountries = async () => {
-  try {
-    const response = await fetch('https://restcountries.com/v3.1/all');
-    const countriesData = await response.json();
-
-    // Map countries data to extract name and flag URL
-    countries.value = countriesData.map((country) => {
-      const { name, flags } = country;
-      return {
-        name: name.common,
-        flag: flags.png,
-      };
-    });
-
-    // Convert user's country name to lowercase
-    const userCountryNameLowerCase = currentUser.value.country.toLowerCase();
-
-    // Find the country object that matches the current user's country (case-insensitive)
-    const userCountry = countries.value.find(country => country.name.toLowerCase() === userCountryNameLowerCase);
-
-    // If user's country is found, set the countryFlag variable to the flag image URL
-    if (userCountry) {
-      // Update the countryFlag ref with the flag image URL
-      countryFlag.value = userCountry.flag;
-    } else {
-      console.error('User country not found');
-    }
-  } catch (error) {
-    console.error('Error fetching countries:', error);
-  }
-};
-
 
 const editProfile = () => {
   router.push("/profile/edit");
@@ -199,15 +162,5 @@ const activityLog = () => {
   justify-content: center;
   align-items: center;
   /* Optionally, add other styling for button appearance */
-}
-
-.country-img {
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  border-radius: 0 0 0 50px;
-  width: 15vh;
-  height: 5vh;
-  margin-left: auto;
 }
 </style>

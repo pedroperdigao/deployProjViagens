@@ -69,21 +69,8 @@
                         {{ errorMessage.phoneNumber }}</div>
                 </div>
                 <div class="col-md-5">
-                    <label for="inputState" class="form-label">Country <span class="text-danger">*</span></label>
-                    <input v-model="searchQueryCountry" @input="handleInput"
-                        @click="showResults = filteredCountries.length > 0" type="text" placeholder="Your country"
-                        class="form-control " id="country"
-                        :class="{ 'is-valid': countryValid && formSubmitted, 'is-invalid': !countryValid && formSubmitted }"
-                        required>
-                    <div style="width: 15%" v-show="showResults" class="autocomplete-results"
-                        :class="{ show: showResults }">
-                        <div v-for="country in filteredCountries" :key="country.name"
-                            @click="selectCountry(country.name)" class="result-item">
-                            {{ country.flag }} {{ country.name }}
-                        </div>
-                    </div>
-                    <div class="valid-feedback">Looks good!</div>
-                    <div class="invalid-feedback">{{ errorMessage.country }}</div>
+                    <label for="country" class="form-label">Country</label>
+                    <input v-model="country" type="text" class="form-control" id="country" placeholder="Country">
                 </div>
                 <div class="col-md-5">
                     <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
@@ -127,7 +114,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc, addDoc,collection, updateDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, addDoc, collection, updateDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'vue-router';
 import CryptoJS from 'crypto-js';
 import folderImage from '@/assets/user-photo.png';
@@ -137,8 +124,8 @@ const firstName = ref('');
 const lastName = ref('');
 const username = ref('');
 const email = ref('');
+const country = ref('');
 const phoneNumber = ref('');
-const searchQueryCountry = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const terms = ref(false);
@@ -151,7 +138,6 @@ const lastNameValid = ref(true);
 const usernameValid = ref(false);
 const emailValid = ref(false);
 const phoneNumberValid = ref(true);
-const countryValid = ref(false);
 const passwordValid = ref(false);
 const confirmPasswordValid = ref(false);
 const termsValid = ref(false);
@@ -162,7 +148,6 @@ const errorMessage = ({
     username: '',
     email: '',
     phoneNumber: '',
-    country: '',
     password: '',
     confirmPassword: '',
     terms: ''
@@ -175,7 +160,6 @@ const validateForm = () => {
     errorMessage.username = '';
     errorMessage.email = '';
     errorMessage.phoneNumber = '';
-    errorMessage.country = '';
     errorMessage.password = '';
     errorMessage.confirmPassword = '';
     errorMessage.terms = '';
@@ -186,7 +170,6 @@ const validateForm = () => {
     usernameValid.value = true;
     emailValid.value = true;
     phoneNumberValid.value = true;
-    countryValid.value = true;
     passwordValid.value = true;
     confirmPasswordValid.value = true;
     termsValid.value = true;
@@ -201,9 +184,9 @@ const validateForm = () => {
     } else if (firstName.value.trim().length < 3) {
         firstNameValid.value = false;
         errorMessage.firstName = 'First name must be at least 3 characters.';
-    } else if (firstName.value.trim().length > 12) {
+    } else if (firstName.value.trim().length > 20) {
         firstNameValid.value = false;
-        errorMessage.firstName = 'First name must be at most 12 characters.';
+        errorMessage.firstName = 'First name must be at most 20 characters.';
     }
 
     // Validate Last Name
@@ -216,9 +199,9 @@ const validateForm = () => {
     } else if (lastName.value.trim().length < 3) {
         lastNameValid.value = false;
         errorMessage.lastName = 'Last name must be at least 3 characters.';
-    } else if (lastName.value.trim().length > 12) {
+    } else if (lastName.value.trim().length > 20) {
         lastNameValid.value = false;
-        errorMessage.lastName = 'Last name must be at most 12 characters.';
+        errorMessage.lastName = 'Last name must be at most 20 characters.';
     } else {
         lastNameValid.value = true;
         errorMessage.lastName = '';
@@ -232,9 +215,9 @@ const validateForm = () => {
     } else if (username.value.trim().length < 3) {
         usernameValid.value = false;
         errorMessage.username = 'Username must be at least 3 characters.';
-    } else if (username.value.trim().length > 16) {
+    } else if (username.value.trim().length > 36) {
         usernameValid.value = false;
-        errorMessage.username = 'Username must be at most 16 characters.';
+        errorMessage.username = 'Username must be at most 36 characters.';
     }
 
     // Validate Email
@@ -259,23 +242,6 @@ const validateForm = () => {
     } else {
         phoneNumberValid.value = true;
         errorMessage.phoneNumber = '';
-    }
-
-    // Validate Country
-    const selectedCountry = searchQueryCountry.value.trim();
-    if (searchQueryCountry.value.trim() === '') {
-        countryValid.value = false;
-        errorMessage.country = 'Please select a country.';
-    } else {
-        // Check if the selected country exists in the list of countries
-        const countryExists = countries.value.some(country => country.name.toLowerCase() === selectedCountry.toLowerCase());
-        if (!countryExists) {
-            countryValid.value = false;
-            errorMessage.country = 'Please select a valid country.';
-        } else {
-            countryValid.value = true;
-            errorMessage.country = '';
-        }
     }
 
     // Validate Password
@@ -321,7 +287,7 @@ const validateForm = () => {
     console.log(errorMessage);
 
     if (!firstNameValid.value || !lastNameValid.value || !usernameValid.value || !emailValid.value
-        || !phoneNumberValid.value || !countryValid.value || !passwordValid.value ||
+        || !phoneNumberValid.value || !passwordValid.value ||
         !confirmPasswordValid.value || !termsValid.value) {
         return false;
     }
@@ -355,29 +321,29 @@ const signUp = async () => {
             username: username.value,
             email: user.email,
             phoneNumber: phoneNumber.value.trim() === '' ? '' : phoneNumber.value,
-            country: searchQueryCountry.value,
+            country: country.value,
             encryptedPassword: encryptedPassword,
             photoURL: folderImage
         });
 
         //Add default categories to User
-        
-        
-        const  categories=[
-                { name: 'Museum', color: '#FFD700', userId: user.uid},
-                { name: 'SPA', color: '#FF6347', userId: user.uid},
-                { name: 'Beach', color: '#20B2AA', userId: user.uid},
-                { name: 'Party', color: '#FFA07A', userId: user.uid},
-                { name: 'Restaurant', color: '#FF4500', userId: user.uid},
-                { name: 'Cinema', color: '#FF69B4', userId: user.uid},
-                { name: 'Shopping', color: '#FFD700', userId: user.uid},
-                { name: 'Park', color: '#32CD32', userId: user.uid},
-                { name: 'Bar', color: '#8A2BE2', userId: user.uid}
-            ]
+
+
+        const categories = [
+            { name: 'Museum', color: '#FFD700', userId: user.uid },
+            { name: 'SPA', color: '#FF6347', userId: user.uid },
+            { name: 'Beach', color: '#20B2AA', userId: user.uid },
+            { name: 'Party', color: '#FFA07A', userId: user.uid },
+            { name: 'Restaurant', color: '#FF4500', userId: user.uid },
+            { name: 'Cinema', color: '#FF69B4', userId: user.uid },
+            { name: 'Shopping', color: '#FFD700', userId: user.uid },
+            { name: 'Park', color: '#32CD32', userId: user.uid },
+            { name: 'Bar', color: '#8A2BE2', userId: user.uid }
+        ]
         categories.forEach(async (category) => {
-            await  addDoc(collection(firestore, "categories"), category);
+            await addDoc(collection(firestore, "categories"), category);
         });
-        
+
         const tripDocRef = doc(firestore, "trips", "w1JtnlhxYNP0BdtBCmTy");
         const tripSnapshot = await getDoc(tripDocRef);
         if (tripSnapshot.exists()) {
@@ -391,7 +357,7 @@ const signUp = async () => {
             await updateDoc(tripDocRef, { invites: tripData.invites });
         }
 
-        
+
 
         toast.success('Account created successfully!');
         router.push({ path: '/profile' });
@@ -400,48 +366,6 @@ const signUp = async () => {
         toast.error(error.message);
     }
 };
-
-const countries = ref([]);
-const showResults = ref(false);
-const filteredCountries = ref([]);
-
-const getAllCountries = async () => {
-    try {
-        const response = await fetch('https://restcountries.com/v3.1/all');
-        const countriesData = await response.json();
-
-        countries.value = countriesData.map((country) => {
-            const { name, flag } = country;
-            return {
-                name: name.common,
-                flag: flag,
-            };
-        });
-    } catch (error) {
-        console.error('Erro ao buscar países:', error);
-    }
-};
-
-const handleInput = () => {
-    if (searchQueryCountry.value.length >= 2) {
-        filteredCountries.value = countries.value.filter((country) =>
-            country.name.toLowerCase().includes(searchQueryCountry.value.toLowerCase())
-        );
-        showResults.value = true;
-    } else {
-        filteredCountries.value = [];
-        showResults.value = false;
-    }
-};
-
-const selectCountry = (country) => {
-    searchQueryCountry.value = country;
-    showResults.value = false;
-};
-
-onMounted(() => {
-    getAllCountries();
-});
 
 const image = ref(null);
 const fileInput = ref(null);
@@ -527,25 +451,5 @@ select {
     height: 250px;
     border: 2px dashed #ccc;
     border-radius: 10px;
-}
-
-/* Styles for the autocomplete component */
-.autocomplete-results {
-    position: absolute;
-    z-index: 999;
-    background-color: white;
-    border: 1px solid #ccc;
-    max-height: 200px;
-    overflow-y: auto;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.result-item {
-    padding: 8px;
-    cursor: pointer;
-}
-
-.autocomplete-results.show {
-    display: block;
 }
 </style>
