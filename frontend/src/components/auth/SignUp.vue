@@ -115,6 +115,7 @@
 import { ref, onMounted } from 'vue';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, setDoc, addDoc, collection, updateDoc, getDoc } from 'firebase/firestore';
+import { getStorage,ref as storageRef , uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useRouter } from 'vue-router';
 import CryptoJS from 'crypto-js';
 import defaultProfilePhoto from '@/assets/user-photo.png';
@@ -123,6 +124,7 @@ import { useToast } from 'vue-toastification';
 const auth = getAuth();
 const firestore = getFirestore();
 const firstName = ref('');
+const storage = getStorage();
 const lastName = ref('');
 const username = ref('');
 const email = ref('');
@@ -310,13 +312,26 @@ const signUp = async () => {
     }
 
     try {
+
+        if (uploadedFile) {
+            await handleFileUpload(uploadedFile);
+        }
+        
         const userData = await createUserWithEmailAndPassword(auth, email.value, password.value);
         const user = userData.user;
 
         // Encrypt the password before storing it
         const encryptedPassword = CryptoJS.AES.encrypt(password.value, 'secret').toString();
 
-        const photoURL = image.value || defaultProfilePhoto;
+        // Set the initial value of photoURL to defaultProfilePhoto
+        let photoURL = defaultProfilePhoto;
+
+        // If image value is available after validation, use it
+        if (image.value) {
+            photoURL = image.value;
+        }
+
+        
 
         // Add user data to Firestore
         const userDocRef = doc(firestore, 'users', user.uid);
@@ -330,10 +345,6 @@ const signUp = async () => {
             encryptedPassword: encryptedPassword,
             photoURL: photoURL
         });
-
-        if (uploadedFile) {
-            await handleFileUpload(uploadedFile); 
-        }
 
         //Add default categories to User
         const categories = [
@@ -364,8 +375,6 @@ const signUp = async () => {
             await updateDoc(tripDocRef, { invites: tripData.invites });
         }
 
-
-
         toast.success('Account created successfully!');
         router.push({ path: '/profile' });
     } catch (error) {
@@ -374,9 +383,6 @@ const signUp = async () => {
     }
 };
 
-const setDefaultProfilePhoto = () => {
-    image.value = defaultProfilePhoto;
-};
 
 const handleButtonClick = () => {
     fileInput.value.click();
@@ -408,19 +414,32 @@ const handleDrop = (event) => {
 };
 
 const handleFileUpload = async (file) => {
+    //const files = event.target.files;
+    const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+
     try {
-        // Create a reference to the desired path in Firebase Storage
-        const fileRef = storageReference.child(`profilePictures/${file.name}`);
+        if (!validImageTypes.includes(file.type)) {
+            toast.error('Invalid file type. Please upload an image file');
+            return;
+        }
+        else if (file.size > 5 * 1024 * 1024) {
+            toast.error('Image size exceeds 5MB. Please upload a smaller image');
+            return;
+        }
+        else {
+            // Create a reference to the desired path in Firebase Storage
+            const storagePath = `profilePictures/${file.name}`;
+            const fileRef = storageRef(storage, storagePath);
 
-        // Upload the file to Firebase Storage
-        await uploadBytes(fileRef, file);
+            // Upload the file to Firebase Storage
+            await uploadBytes(fileRef, file);
 
-        // Get the download URL of the uploaded file
-        const imageUrl = await getDownloadURL(fileRef);
+            // Get the download URL of the uploaded file
+            const imageUrl = await getDownloadURL(fileRef);
 
-        // Update the image ref with the URL
-        image.value = imageUrl;
-
+            // Update the image ref with the URL
+            image.value = imageUrl;
+        }
     } catch (error) {
         console.error('Error uploading profile picture:', error);
     }
