@@ -147,7 +147,7 @@ const validateForm = () => {
     if (firstName.value.trim() === '') {
         firstNameValid.value = false;
         errorMessage.firstName = 'First name is required.';
-    } else if (!/^[a-zA-Z]+$/.test(firstName.value.trim())) {
+    } else if(/\d/.test(firstName.value.trim()))  {
         firstNameValid.value = false;
         errorMessage.firstName = 'First name must contain only letters.';
     } else if (firstName.value.trim().length < 3) {
@@ -162,7 +162,7 @@ const validateForm = () => {
     if (lastName.value.trim() === '') {
         lastNameValid.value = true;
     }
-    else if (lastName.value.trim().length > 0 && !/^[a-zA-Z]+$/.test(lastName.value.trim())) {
+    else if (/\d/.test(lastName.value.trim())){
         lastNameValid.value = false;
         errorMessage.lastName = 'Last name must contain only letters.';
     } else if (lastName.value.trim().length < 3) {

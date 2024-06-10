@@ -201,7 +201,7 @@ const validateForm = () => {
     if (lastName.value.trim() === '') {
         lastNameValid.value = true;
         errorMessage.lastName = '';
-    } else if (/\d/.test(firstName.value.trim())) {
+    } else if (/\d/.test(lastName.value.trim())) {
         lastNameValid.value = false;
         errorMessage.lastName = 'Last name must contain only letters.';
     } else if (lastName.value.trim().length < 3) {
