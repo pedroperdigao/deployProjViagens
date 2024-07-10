@@ -1,38 +1,75 @@
 <template>
-    <div class="container-full">
-        <div class="col">
+    <div class="container-full shadow-lg">
+        <div v-if="!isMobileView" class="col">
             <!-- Add Image -->
             <div>
-                <input type="file" ref="fileInput" style="display: none" @change="handleFileInput">
-                <p class="mb-2">Profile Picture</p>
-                <div ref="dropArea" class="image-box cursor-pointer" @dragover.prevent @drop="handleDrop"
-                    @click="handleButtonClick">
-                    <div v-if="!image" class="text-box text-center mt-10">
+                <p class="mb-2 font-semibold" style="color: #465666;">Upload Profile Picture</p>
+                <div v-if="!imageSrc" ref="dropArea" class="image-box" @dragover.prevent @drop="handleDrop">
+                    <div class="text-box text-center mt-10">
                         <i class="bi bi-cloud-upload" style="color:#3b82f6; font-size: 5vh;"></i>
                         <p class="font-semibold m-1" style="color:#465666">Drag and drop image here</p>
                         <p class="m-1">or</p>
-                        <button class="shadow py-2 px-3 font-semibold rounded-full mt-2" type="button"
+                        <button class="shadow py-2 px-3 font-semibold rounded-full mt-2" @click="imageInput.click()"
                             style="background-color:#3b82f6; color:white; font-size: 14px;">Browse Image</button>
                     </div>
-                    <img v-else :src="image" alt="Uploaded Image"
-                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px">
+                    <input type="file" ref="imageInput" accept=".jpg,.jpeg,.png" @change="fileChanged"
+                        style="display: none;" />
                 </div>
+                <div v-show="imageSrc" class=" w-64 h-64 mx-auto">
+                    <img ref="img" :src="imageSrc" />
+                </div>
+                <p v-show="imageSrc" class="flex mt-1 mb-0 justify-center font-semibold">
+                    Drag & zoom your picture
+                </p>
+                <p v-show="imageSrc" class="flex mb-1 justify-center text-gray-700">or</p>
+                <button v-show="imageSrc" class="btn btn-secondary w-full shadow" @click="fileCleared">
+                    Cancel
+                </button>
             </div>
         </div>
         <div class="col2">
             <!-- Create Account Form -->
-            <form class="row g-3 needs-validation" @submit.prevent="signUp" novalidate>
+            <form class="row g-3 needs-validation gap-3" @submit.prevent="signUp" novalidate>
+
+                <div v-if="isMobileView">
+                    <p class="mb-2 font-semibold" style="color: #465666;">Upload Profile Picture</p>
+                    <div v-if="!imageSrc" ref="dropArea" class="image-box" @dragover.prevent @drop="handleDrop">
+                        <div class="text-box text-center mt-10">
+                            <i class="bi bi-cloud-upload" style="color:#3b82f6; font-size: 5vh;"></i>
+                            <p class="font-semibold m-1" style="color:#465666">Drag and drop image here</p>
+                            <p class="m-1">or</p>
+                            <button class="shadow py-2 px-3 font-semibold rounded-full mt-2" @click="imageInput.click()"
+                                style="background-color:#3b82f6; color:white; font-size: 14px;">Browse Image</button>
+                        </div>
+                        <input type="file" ref="imageInput" accept=".jpg,.jpeg,.png" @change="fileChanged"
+                            style="display: none;" />
+                    </div>
+                    <div v-show="imageSrc" class=" w-64 h-64 mx-auto">
+                        <img ref="img" :src="imageSrc" />
+                    </div>
+                    <p v-show="imageSrc" class="flex mt-1 mb-0 justify-center font-semibold">
+                        Drag & zoom your picture
+                    </p>
+                    <p v-show="imageSrc" class="flex mb-1 justify-center text-gray-700">or</p>
+                    <button v-show="imageSrc" class="btn btn-secondary w-full shadow" @click="fileCleared">
+                        Cancel
+                    </button>
+                </div>
+
                 <div class="col-md-5">
-                    <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
-                    <input v-model="firstName" type="text" class="form-control" id="firstName" placeholder="First Name"
+                    <label for="firstName" class="form-label font-semibold">First Name <span
+                            class="text-danger">*</span></label>
+                    <input v-model="firstName" type="text" class="form-control shadow" id="firstName"
+                        placeholder="First Name"
                         :class="{ 'is-valid': firstNameValid && formSubmitted, 'is-invalid': !firstNameValid && formSubmitted }"
                         @input="validateForm" required>
                     <div class="valid-feedback">Looks good!</div>
                     <div class="invalid-feedback">{{ errorMessage.firstName }}</div>
                 </div>
                 <div class="col-md-5">
-                    <label for="lastName" class="form-label">Last Name</label>
-                    <input v-model="lastName" type="text" class="form-control" id="lastName" placeholder="Last Name"
+                    <label for="lastName" class="form-label font-semibold">Last Name</label>
+                    <input v-model="lastName" type="text" class="form-control shadow" id="lastName"
+                        placeholder="Last Name"
                         :class="{ 'is-valid': lastNameValid && formSubmitted && lastName.trim() !== '', 'is-invalid': !lastNameValid && formSubmitted && lastName.trim() !== '' }"
                         @input="validateForm">
                     <div v-if="lastName.trim() !== '' && lastNameValid" class="valid-feedback">Looks good!</div>
@@ -40,18 +77,20 @@
                         {{ errorMessage.lastName }}</div>
                 </div>
                 <div class="col-md-5">
-                    <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
-                    <input v-model="username" type="text" class="form-control" id="username" placeholder="Username"
+                    <label for="username" class="form-label font-semibold">Username <span
+                            class="text-danger">*</span></label>
+                    <input v-model="username" type="text" class="form-control shadow" id="username"
+                        placeholder="Username"
                         :class="{ 'is-valid': usernameValid && formSubmitted, 'is-invalid': !usernameValid && formSubmitted }"
                         @input="validateForm" required>
                     <div class="valid-feedback">Looks good!</div>
                     <div class="invalid-feedback">{{ errorMessage.username }}</div>
                 </div>
                 <div class="col-md-5">
-                    <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                    <label for="email" class="form-label font-semibold">Email <span class="text-danger">*</span></label>
                     <div class="input-group has-validation">
-                        <span class="input-group-text" id="inputGroupPrepend3">@</span>
-                        <input v-model="email" type="email" class="form-control" id="email" placeholder="Email"
+                        <span class="input-group-text shadow" id="inputGroupPrepend3">@</span>
+                        <input v-model="email" type="email" class="form-control shadow" id="email" placeholder="Email"
                             :class="{ 'is-valid': emailValid && formSubmitted, 'is-invalid': !emailValid && formSubmitted }"
                             @input="validateForm" required>
                         <div class="valid-feedback">Looks good!</div>
@@ -59,8 +98,8 @@
                     </div>
                 </div>
                 <div class="col-md-5">
-                    <label for="phoneNumber" class="form-label">Phone Number</label>
-                    <input v-model="phoneNumber" type="text" class="form-control" id="phoneNumber"
+                    <label for="phoneNumber" class="form-label font-semibold">Phone Number</label>
+                    <input v-model="phoneNumber" type="text" class="form-control shadow" id="phoneNumber"
                         placeholder="Phone Number"
                         :class="{ 'is-valid': phoneNumberValid && formSubmitted && phoneNumber.trim() !== '', 'is-invalid': !phoneNumberValid && formSubmitted && phoneNumber.trim() !== '' }"
                         @input="validateForm">
@@ -69,21 +108,23 @@
                         {{ errorMessage.phoneNumber }}</div>
                 </div>
                 <div class="col-md-5">
-                    <label for="country" class="form-label">Country</label>
-                    <input v-model="country" type="text" class="form-control" id="country" placeholder="Country">
+                    <label for="country" class="form-label font-semibold">Country</label>
+                    <input v-model="country" type="text" class="form-control shadow" id="country" placeholder="Country">
                 </div>
                 <div class="col-md-5">
-                    <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
-                    <input v-model="password" type="password" class="form-control" id="password" placeholder="Password"
+                    <label for="password" class="form-label font-semibold">Password <span
+                            class="text-danger">*</span></label>
+                    <input v-model="password" type="password" class="form-control shadow" id="password"
+                        placeholder="Password"
                         :class="{ 'is-valid': passwordValid && formSubmitted, 'is-invalid': !passwordValid && formSubmitted }"
                         @input="validateForm" required>
                     <div class="valid-feedback">Looks good!</div>
                     <div class="invalid-feedback">{{ errorMessage.password }}</div>
                 </div>
                 <div class="col-md-5">
-                    <label for="confirmPassword" class="form-label">Confirm Password <span
+                    <label for="confirmPassword" class="form-label font-semibold">Confirm Password <span
                             class="text-danger">*</span></label>
-                    <input v-model="confirmPassword" type="password" class="form-control" id="confirmPassword"
+                    <input v-model="confirmPassword" type="password" class="form-control shadow" id="confirmPassword"
                         placeholder="Confirm Password"
                         :class="{ 'is-valid': confirmPasswordValid && formSubmitted, 'is-invalid': !confirmPasswordValid && formSubmitted }"
                         @input="validateForm" required>
@@ -112,14 +153,15 @@
 
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch, watchEffect } from 'vue';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc, addDoc, collection, updateDoc, getDoc } from 'firebase/firestore';
-import { getStorage,ref as storageRef , uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getFirestore, doc, setDoc, addDoc, collection, updateDoc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useRouter } from 'vue-router';
 import CryptoJS from 'crypto-js';
 import defaultProfilePhoto from '@/assets/user-photo.png';
 import { useToast } from 'vue-toastification';
+import Cropper from 'cropperjs';
 
 const auth = getAuth();
 const firestore = getFirestore();
@@ -145,10 +187,8 @@ const phoneNumberValid = ref(true);
 const passwordValid = ref(false);
 const confirmPasswordValid = ref(false);
 const termsValid = ref(false);
-const image = ref(null);
-const fileInput = ref(null);
-let uploadedFile = null;
 let storageReference; // Declared storageReference
+const isMobileView = ref(window.innerWidth <= 768);
 
 const errorMessage = ({
     firstName: '',
@@ -160,6 +200,13 @@ const errorMessage = ({
     confirmPassword: '',
     terms: ''
 })
+
+const imageInput = ref(null);
+const selectedFile = ref(null);
+const imageSrc = ref(null);
+const img = ref(null);
+const fileReader = new FileReader();
+let cropper = null;
 
 const validateForm = () => {
     // Reset error messages
@@ -312,11 +359,39 @@ const signUp = async () => {
     }
 
     try {
+        const lowercaseUsername = username.value.trim().toLowerCase();
 
-        if (uploadedFile) {
-            await handleFileUpload(uploadedFile);
+        // Fetch all usernames from Firestore
+        const usersCollection = collection(firestore, 'users');
+        const usersSnapshot = await getDocs(usersCollection);
+
+        // Create a set of lowercase usernames
+        const lowercaseUsernames = new Set();
+        usersSnapshot.forEach((doc) => {
+            const userData = doc.data();
+            lowercaseUsernames.add(userData.username.toLowerCase());
+        });
+
+        // Check if the lowercase username already exists in the set
+        if (lowercaseUsernames.has(lowercaseUsername)) {
+            usernameValid.value = false;
+            errorMessage.username = 'Username is already taken.';
+            toast.error('Username is already taken. Please choose another one.');
+            return;
         }
-        
+
+        // If there is an image, upload it to Firestore
+        if (selectedFile.value) {
+            cropper.getCroppedCanvas({
+                width: 256,
+                height: 256,
+            }).toBlob((blob) => {
+                handleFileUpload(blob);
+            }, 'image/jpeg');
+
+            selectedFile.value = null;
+        }
+
         const userData = await createUserWithEmailAndPassword(auth, email.value, password.value);
         const user = userData.user;
 
@@ -327,11 +402,17 @@ const signUp = async () => {
         let photoURL = defaultProfilePhoto;
 
         // If image value is available after validation, use it
-        if (image.value) {
-            photoURL = image.value;
-        }
+        if (imageSrc.value) {
+            photoURL = imageSrc.value;
+        }else{
+            const storagePath = `profilePictures/user-photo.png`;
+            const fileRef = storageRef(storage, storagePath);
 
-        
+
+            // Get the download URL of the uploaded file
+            photoURL = await getDownloadURL(fileRef);
+
+        }
 
         // Add user data to Firestore
         const userDocRef = doc(firestore, 'users', user.uid);
@@ -383,30 +464,43 @@ const signUp = async () => {
     }
 };
 
-
-const handleButtonClick = () => {
-    fileInput.value.click();
+// Function to handle file reading
+fileReader.onload = (event) => {
+    imageSrc.value = event.target.result;
 };
 
-const handleFileInput = (event) => {
-    const file = event.target.files[0];
-    const reader = new FileReader();
-
-    reader.onload = () => {
-        image.value = reader.result;
-        uploadedFile = file;
-    };
-
-    reader.readAsDataURL(file);
+// Function to handle file selection change
+const fileChanged = (e) => {
+    const files = e.target.files || e.dataTransfer.files;
+    if (files.length) {
+        selectedFile.value = files[0];
+        console.log('Selected file:', selectedFile.value);
+    }
 };
+
+// Function to clear selected file
+const fileCleared = () => {
+    selectedFile.value = null;
+};
+
+const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
 
 const handleDrop = (event) => {
     event.preventDefault();
     const file = event.dataTransfer.files[0];
     const reader = new FileReader();
 
+    if (!validImageTypes.includes(file.type)) {
+        console.error('Invalid file type. Please upload an image file.');
+        toast.error('Invalid file type. Please upload an image file.');
+        return;
+    } else if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size exceeds 5MB. Please upload a smaller image');
+        return;
+    }
+
     reader.onload = () => {
-        image.value = reader.result;
+        imageSrc.value = reader.result;
         uploadedFile = file;
     };
 
@@ -414,37 +508,61 @@ const handleDrop = (event) => {
 };
 
 const handleFileUpload = async (file) => {
-    //const files = event.target.files;
-    const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
-
     try {
-        if (!validImageTypes.includes(file.type)) {
-            toast.error('Invalid file type. Please upload an image file');
-            return;
-        }
-        else if (file.size > 5 * 1024 * 1024) {
-            toast.error('Image size exceeds 5MB. Please upload a smaller image');
-            return;
-        }
-        else {
-            // Create a reference to the desired path in Firebase Storage
-            const storagePath = `profilePictures/${file.name}`;
-            const fileRef = storageRef(storage, storagePath);
+        // Create a reference to the desired path in Firebase Storage
+        const storagePath = `profilePictures/${file.name}`;
+        const fileRef = storageRef(storage, storagePath);
 
-            // Upload the file to Firebase Storage
-            await uploadBytes(fileRef, file);
+        // Upload the file to Firebase Storage
+        await uploadBytes(fileRef, file);
 
-            // Get the download URL of the uploaded file
-            const imageUrl = await getDownloadURL(fileRef);
+        // Get the download URL of the uploaded file
+        const imageUrl = await getDownloadURL(fileRef);
 
-            // Update the image ref with the URL
-            image.value = imageUrl;
-        }
+        // Update the image ref with the URL
+        imageSrc.value = imageUrl;
+
     } catch (error) {
         console.error('Error uploading profile picture:', error);
     }
 };
 
+onMounted(() => {
+    cropper = new Cropper(img.value, {
+        aspectRatio: 1,
+        minCropBoxWidth: 256,
+        minCropBoxHeight: 256,
+        viewMode: 3,
+        dragMode: 'move',
+        background: false,
+        cropBoxMovable: false,
+        cropBoxResizable: false,
+        guides: false,
+        zoomable: true,
+        wheelZoomRatio: 0.2,
+    });
+});
+
+// Destroy Cropper on component unmount
+onUnmounted(() => {
+    cropper.destroy();
+});
+
+// Watch for changes in selectedFile and update imageSrc accordingly
+watchEffect(() => {
+    if (selectedFile.value) {
+        fileReader.readAsDataURL(selectedFile.value);
+    } else {
+        imageSrc.value = null;
+    }
+});
+
+// Watch for changes in imageSrc and update Cropper instance
+watch(imageSrc, () => {
+    if (imageSrc.value) {
+        cropper.replace(imageSrc.value);
+    }
+}, { flush: 'post' });
 </script>
 
 

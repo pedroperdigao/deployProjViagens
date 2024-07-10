@@ -12,6 +12,7 @@ import 'vue-toastification/dist/index.css'
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from 'firebase/auth';
+import { io } from "socket.io-client"
 
 const firebaseConfig = {
     apiKey: "AIzaSyD-lDyusU2NaFt1y6AaB7HtxDAnCDC8OEs",
@@ -42,4 +43,5 @@ initializeApp(firebaseConfig);
 const app = createApp(App);
 app.use(Toast, toastOptions);
 app.use(router);
+app.provide('socket', io("http://localhost:8080"))
 app.mount('#app');

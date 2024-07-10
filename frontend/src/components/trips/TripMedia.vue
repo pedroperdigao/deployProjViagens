@@ -1,5 +1,5 @@
 <template>
-    <div class="container-full">
+    <div v-if="!isMobileView" class="container-full shadow-lg">
         <div class="d-flex" style="width: 100%; justify-content: space-between">
             <button class="profile-btns"
                 style="border-bottom: 1px solid #c9c9c9; margin-top: 20px;padding-bottom: 20px;"
@@ -47,6 +47,58 @@
 
             </div>
         </template>
+    </div>
+    <div v-else>
+        <div class="container-full mobile-container shadow-lg">
+            <div class="d-flex mobile-tabs" style="justify-content: space-between">
+                <button class="mobile-profile-btns" @click="tabTripEvents(tripId)">
+                    <i class="bi bi-calendar-event-fill mx-2"></i>
+                    Events
+                </button>
+                <button class="mobile-profile-btns" @click="tabTripInfo(tripId)">
+                    <i class="bi bi-info-circle-fill mx-2"></i>
+                    Trip Info
+                </button>
+                <button class="mobile-profile-btns" @click="tabTripMembers(tripId)">
+                    <i class="bi bi-people-fill mx-2"></i>
+                    Members
+                </button>
+                <button class="mobile-profile-btns" @click="tabTripMedia(tripId)">
+                    <i class="bi bi-image-fill mx-2"></i>
+                    Media
+                </button>
+                <button class="mobile-profile-btns" @click="tabTripReviews(tripId)">
+                    <i class="bi bi-star-fill mx-2"></i>
+                    Reviews
+                </button>
+            </div>
+            <template v-if="loading">
+      <div class="d-flex justify-content-center align-items-center mt-4">
+        <div class="spinner-border text-primary" role="status">
+          <span class="sr-only">Loading...</span>
+        </div>
+      </div>
+    </template>
+    <template v-else>
+      <div class="media-container justify-content-center" style="padding-top: 2vh; ">
+        <div class="add-photo-container">
+          <div v-if="isOrganizer" class="add-photo" @click="openInserImageModal">
+            <input type="file" ref="fileInput" style="display: none;">
+            <p>+</p>
+          </div>
+        </div>
+        <div v-for="(photo, index) in photos" :key="photo.id" class="photo-item-mobile">
+          <div class="image-container">
+            <button @click="previewImage(index)"><img :src="photo.url" alt="Photo"></button>
+            <button class="remove-btn" v-if="isOrganizer" @click="deletePhoto(photo.id, photo.url)">✕</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+
+        </div>
+
     </div>
 
     <!-- Imagem Modal -->
@@ -175,7 +227,8 @@ const files = ref([]);
 const currentSlide = ref(0);
 const currentUserId = ref(null);
 const organizerId = ref(null);
-
+const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+const isMobileView = ref(window.innerWidth <= 768);
 
 onMounted(async () => {
     loading.value = true;
@@ -238,6 +291,16 @@ const handleButtonClick = () => {
 
 const readImage = (file) => {
     const reader = new FileReader();
+
+    if (!validImageTypes.includes(file.type)) {
+        console.error('Invalid file type. Please upload an image file.');
+        toast.error('Invalid file type. Supported types are jpg, jpeg and png.');
+        return;
+    } else if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size exceeds 5MB. Please upload a smaller image');
+        return;
+    }
+
     reader.onload = (e) => {
         images.value.push(e.target.result);
     };
@@ -260,6 +323,7 @@ const handleDrop = (event) => {
     event.preventDefault();
     files.value = event.dataTransfer.files;
     images.value = [];
+
     for (let i = 0; i < files.value.length; i++) {
         readImage(files.value[i]);
     }
@@ -281,9 +345,12 @@ const handleFileSelection = (event) => {
     }
 };
 
-const uploadImages = async () => {
+const uploadImages = async (event) => {
+    //const files = event.target.files;
     const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
     const uploadPromises = [];
+
+    console.log(files.value);
 
     for (let i = 0; i < files.value.length; i++) {
         const file = files.value[i];
@@ -293,11 +360,13 @@ const uploadImages = async () => {
 
         if (!validImageTypes.includes(file.type)) {
             toast.error('Invalid file type. Please upload an image file');
-            continue;
-        } else if (file.size > 5 * 1024 * 1024) {
+            return;
+        }
+        else if (file.size > 5 * 1024 * 1024) {
             toast.error('Image size exceeds 5MB. Please upload a smaller image');
-            continue;
-        } else {
+            return;
+        }
+        else {
             const storagePath = `photos/${tripId}/${file.name}`;
             const storageReference = storageRef(storage, storagePath);
 
@@ -319,10 +388,10 @@ const uploadImages = async () => {
         await Promise.all(uploadPromises);
         toast.success('All images uploaded successfully');
         closeInserImageModal();
-        fetchPhotos();
     } catch (error) {
         toast.error('Error uploading one or more images');
     }
+
 };
 
 const fetchPhotos = async () => {
@@ -418,6 +487,8 @@ const downloadPhoto = async (url) => {
 };
 
 const isOrganizer = computed(() => {
+    //console.log("==========> currentUserId.value: ", currentUserId.value);
+    //console.log("==========> organizerId.value: ", organizerId.value);
 
     return currentUserId.value === organizerId.value;
 });
@@ -479,8 +550,10 @@ const tabTripReviews = (tripId) => {
 
 .add-photo p {
     color: white;
-    font-size: 3vh; /* Adjust size as needed */
-    margin: 0; /* Remove default margin */
+    font-size: 3vh;
+    /* Adjust size as needed */
+    margin: 0;
+    /* Remove default margin */
 }
 
 .add-photo i {
@@ -503,6 +576,24 @@ const tabTripReviews = (tripId) => {
 .photo-item img {
     width: 17vh;
     height: 17vh;
+    object-fit: contain;
+}
+
+.photo-item-mobile {
+    width: 10vh;
+    height: 10vh;
+    border-radius: 10px;
+    border: 1px solid #c9c9c9;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.photo-item-mobile img {
+    width: 10vh;
+    height: 10vh;
     object-fit: contain;
 }
 
@@ -602,5 +693,19 @@ const tabTripReviews = (tripId) => {
 .thumbnail-image:hover {
     border-color: #3b82f6;
     /* Cor da borda ao passar o mouse */
+}
+
+.mobile-container {
+    padding: 10px;
+}
+
+.mobile-tabs {
+    margin-bottom: 20px;
+}
+
+.mobile-profile-btns {
+    flex: 1;
+    text-align: center;
+    margin: 0 5px;
 }
 </style>

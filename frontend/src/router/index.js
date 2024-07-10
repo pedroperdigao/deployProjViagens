@@ -7,6 +7,7 @@ import Dashboard from '../components/Dashboard.vue'
 import Login from "../components/auth/Login.vue"
 import SignUp from "../components/auth/SignUp.vue"
 import Profile from "../components/users/Profile.vue"
+import ResetPassword from "@/components/users/ResetPassword.vue"
 import EditProfile from "../components/users/EditProfile.vue"
 import NewTrip from "../components/trips/NewTrip.vue"
 import Trips from '@/components/trips/Trips.vue'
@@ -18,6 +19,7 @@ import TripDetails from '@/components/trips/TripDetails.vue'
 import TripMembers from '@/components/trips/TripMembers.vue'
 import TripMedia from '@/components/trips/TripMedia.vue'
 import TripReview from '@/components/trips/TripReview.vue'
+
 
 const router = createRouter({
   history: createWebHistory(),
@@ -45,6 +47,11 @@ const router = createRouter({
       path: '/profile/edit',
       name: 'EditProfile',
       component: EditProfile,
+    },
+    {
+      path: '/profile/reset-password',
+      name: 'ResetPassword',
+      component: ResetPassword,
     },
     {
       path: '/trips/new',
@@ -107,7 +114,7 @@ const router = createRouter({
 
     },
     {
-      path: '/:catchAll(.*)', 
+      path: '/:catchAll(.*)',
       redirect: '/'
     },
 
@@ -127,7 +134,7 @@ const checkTripAccess = async (tripId, userId) => {
   const db = getFirestore();
   const tripDoc = await getDoc(doc(db, "trips", tripId));
   console.log(tripDoc);
-  
+
   if (tripDoc.exists()) {
     const tripData = tripDoc.data();
     const isMember = tripData.members.includes(userId);

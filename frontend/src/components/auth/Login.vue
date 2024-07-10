@@ -1,5 +1,5 @@
 <template>
-  <div class="container-full">
+  <div class="container-full shadow-lg">
     <!-- Main Content Section -->
     <section class="mt-16">
       <div class="flex flex-wrap justify-center">
@@ -20,7 +20,7 @@
             <div class="mb-3">
               <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
               <input v-model="password" type="password" class="form-control" id="password" placeholder="Password"
-                :class="{ 'is-valid': passwordValid && formSubmitted, 'is-invalid': !passwordValid && formSubmitted }"
+                :class="{ 'is-valid': passwordValid && passwordSubmit, 'is-invalid': !passwordValid && passwordSubmit }"
                 required>
               <div class="valid-feedback">Looks good!</div>
               <div class="invalid-feedback">{{ errorMessage.password }}</div>
@@ -70,6 +70,7 @@ const router = useRouter();
 const toast = useToast();
 const auth = getAuth();
 const firestore = getFirestore();
+const passwordSubmit = ref(false); 
 
 const validateForm = () => {
   errorMessage.value.email = '';
@@ -95,13 +96,14 @@ const login = () => {
 
   signInWithEmailAndPassword(auth, email.value, password.value)
     .then(() => {
+      passwordSubmit.value = true;
       passwordValid.value = true;
       console.log("Successfully signed in");
       router.push({ path: "/profile" });
       toast.success("Welcome back! You are now logged in");
     })
     .catch(() => {
-      // Validate Password
+      passwordSubmit.value = true;
       if (password.value.trim() === '') {
         passwordValid.value = false;
         errorMessage.value.password = 'Password is required.';
@@ -129,7 +131,7 @@ const signInWithGoogle = async () => {
       [firstName, lastName] = displayName.split(" ");
     } else {
       firstName = displayName;
-      lastName = ""; // or lastName = null;
+      lastName = ""; 
     }
 
     const userDocRef = doc(firestore, 'users', uid);

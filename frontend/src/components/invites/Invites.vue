@@ -1,18 +1,21 @@
 <template>
-    <div class="container-full">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
-            <!-- Loading spinner while data is being fetched -->
-            <template v-if="loading">
-                <div class="clearfix mt-2">
-                    <div class="spinner-border float-right text-primary" role="status">
-                        <span class="sr-only">Loading...</span>
-                    </div>
+    <div class="container-full shadow-lg" :style="{ padding: isMobileView ? '0' : '20px' }">
+
+        <!-- Loading spinner while data is being fetched -->
+        <template v-if="loading">
+            <div class="clearfix mt-2">
+                <div class="spinner-border float-right text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
                 </div>
-            </template>
-            <!-- Display trip cards when data is loaded -->
-            <template v-else>
+            </div>
+        </template>
+        <!-- Display trip cards when data is loaded -->
+        <template v-else>
+            <h2 v-if="trips.length == 0" class="text-lg flex justify-content-center bold"> No invites</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
                 <!-- Loop through each trip and display its details -->
-                <div v-for="trip in trips" :key="trip.id" class="flex flex-col mb-4 mx-5 mt-10">
+                <div v-for="trip in trips" :key="trip.id" class="flex flex-col mb-4  mt-10"
+                    :class="{ 'mx-5': !isMobileView, 'mx-3': isMobileView }">
                     <div class="d-flex">
                         <!-- Card for displaying trip information -->
                         <div id="card" class="bg-gray-100 shadow-md rounded-lg overflow-hidden flex flex-col">
@@ -47,26 +50,53 @@
                         <!-- Buttons for accepting or declining trip invitations -->
                         <div class="flex flex-col">
                             <!-- Button to accept invite -->
-                            <button id="btn_accept_invite" class="text-white font-bold px-2 py-8" title="Accept Invite" @click="acceptInvite(trip)">
+                            <button id="btn_accept_invite" class="text-white font-bold px-2 py-8" title="Accept Invite"
+                                @click="openConfirmationModalAccept(trip)">
                                 <i class="bi bi-check-lg"></i>
                             </button>
                             <!-- Button to decline invite -->
                             <button id="btn_decline_invite" class="text-white font-bold px-2 py-8"
-                                title="Decline Invite"  @click="declineInvite(trip)">
+                                title="Decline Invite" @click="openConfirmationModalDecline(trip)">
                                 <i class="bi bi-x-lg"></i>
                             </button>
                         </div>
                     </div>
                 </div>
-                <!-- Display error message if there's an error -->
-                <div v-if="error" class="text-red-500 text-center col-span-full">{{ error }}</div>
-            </template>
+            </div>
+            <!-- Display error message if there's an error -->
+            <div v-if="error" class="text-red-500 text-center col-span-full">{{ error }}</div>
+        </template>
+    </div>
+
+    <!-- Modal to confirm the accept -->
+    <div>
+        <div v-if="confirmationModal" class="modal" tabindex="-1" style="display: block">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirmation</h5>
+                        <button type="button" class="btn-close" @click="closeModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p v-if="inviteAccepted">Are you sure you want to accept this trip invitation?</p>
+                        <p v-if="!inviteAccepted">Are you sure you want to decline this trip invitation?</p>
+
+
+                    </div>
+                    <div class="modal-footer">
+                        <button @click="closeModal" class="btn btn-secondary">No</button>
+                        <button v-if="inviteAccepted" @click="acceptInvite(selectedTrip)" class="btn btn-primary">Yes</button>
+                        <button v-if="!inviteAccepted" @click="declineInvite(selectedTrip)" class="btn btn-primary">Yes</button>
+                    </div>
+                </div>
+            </div>
         </div>
+
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, inject } from "vue";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, updateDoc, query, collection, getDoc, getDocs, where } from "firebase/firestore";
 import { getFirestore } from "firebase/firestore";
@@ -85,6 +115,11 @@ const loading = ref(false);
 const error = ref(null);
 const members = ref({}); // Store members' data
 const emit = defineEmits(["numPendingInvites"]);
+const isMobileView = ref(window.innerWidth <= 768);
+const socket = inject("socket");
+const inviteAccepted = ref(false);
+const selectedTrip = ref(null);
+const confirmationModal = ref(false);
 
 let storageReference; // Declared storageReference
 
@@ -151,6 +186,38 @@ const fetchMembersData = async (trip) => {
         .map(result => result.value);
 };
 
+socket.on("sendInvite", async (invite) => {
+    console.log('sendInvite:', invite)
+
+    if (currentUser.value.uid == invite.id) {
+
+        await new Promise((resolve) => {
+            setTimeout(resolve, 1000);
+        });
+        fetchTrips();
+
+    }
+
+});
+
+const openConfirmationModalAccept = (trip) => {
+    inviteAccepted.value=true;
+    selectedTrip.value = trip;
+    console.log('selectedTrip:', selectedTrip.value)
+    confirmationModal.value = true;
+};
+
+const openConfirmationModalDecline = (trip) => {
+    inviteAccepted.value=false;
+    selectedTrip.value = trip;
+    confirmationModal.value = true;
+};
+
+const closeModal = () => {
+    confirmationModal.value = false;
+    selectedTrip.value = null;
+};
+
 
 const getTripDuration = (startDate, endDate) => {
     const start = new Date(startDate);
@@ -198,10 +265,7 @@ const fetchTrips = async () => {
 
 // Function to accept trip invitation
 const acceptInvite = async (trip) => {
-    const isConfirmed = window.confirm('Are you sure you want to accept this trip invitation?');
-    if (!isConfirmed) {
-        return; // If the user cancels, do nothing
-    }
+
 
     try {
         const index = trip.invites.indexOf(currentUser.value.uid);
@@ -213,9 +277,11 @@ const acceptInvite = async (trip) => {
             await updateDoc(tripDocRef, { members: trip.members });
             await fetchTrips();
             toast.success("Trip invitation accepted successfully");
+            router.push({ name: "Trip", params: { tripId: trip.id } });
         } else {
             console.error("User ID not found in trip's invites array");
         }
+        closeModal();
     } catch (error) {
         console.error("Error accepting invite:", error);
         toast.error("Error accepting trip invitation");
@@ -224,22 +290,20 @@ const acceptInvite = async (trip) => {
 
 // Function to decline trip invitation
 const declineInvite = async (trip) => {
-    const isConfirmed = window.confirm('Are you sure you want to decline this trip invitation?');
-    if (!isConfirmed) {
-        return; // If the user cancels, do nothing
-    }
-
+    
     try {
         const index = trip.invites.indexOf(currentUser.value.uid);
         if (index !== -1) {
             trip.invites.splice(index, 1);
             const tripDocRef = doc(firestore, "trips", trip.id);
             await updateDoc(tripDocRef, { invites: trip.invites });
-            await fetchTrips();
+            //await fetchTrips();
+            trips.value = trips.value.filter((t) => t.id !== trip.id);
             toast.success("Trip invitation declined successfully");
         } else {
             console.error("User ID not found in trip's invites array");
         }
+        closeModal();
     } catch (error) {
         console.error("Error declining invite:", error);
         toast.error("Error declining trip invitation");
@@ -279,7 +343,7 @@ const formatDate = (dateString) => {
     background-size: cover;
     background-position: center;
     border-radius: 20px;
-    padding: 20px;
+    /*padding: 20px;*/
     min-height: 70vh;
     margin-top: 10px;
 }

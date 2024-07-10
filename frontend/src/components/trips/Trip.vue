@@ -1,5 +1,342 @@
 <template>
-  <div class="container-full">
+  <div v-if="isMobileView">
+    <!-- Template para visualização móvel -->
+    <div class="container-full mobile-container shadow-lg">
+      <div class="d-flex mobile-tabs" style="justify-content: space-between">
+        <button class="mobile-profile-btns" @click="">
+          <i class="bi bi-calendar-event-fill mx-2"></i>
+          Events
+        </button>
+        <button class="mobile-profile-btns" @click="tabTripInfo(tripId)">
+          <i class="bi bi-info-circle-fill mx-2"></i>
+          Trip Info
+        </button>
+        <button class="mobile-profile-btns" @click="tabTripMembers(tripId)">
+          <i class="bi bi-people-fill mx-2"></i>
+          Members
+        </button>
+        <button class="mobile-profile-btns" @click="tabTripMedia(tripId)">
+          <i class="bi bi-image-fill mx-2"></i>
+          Media
+        </button>
+        <button class="mobile-profile-btns" @click="tabTripReviews(tripId)">
+          <i class="bi bi-star-fill mx-2"></i>
+          Reviews
+        </button>
+      </div>
+
+      <!-- Filtro móvel -->
+      <div class="d-flex items-center p-3 mt-2">
+        <label for="mobile-category" class="mobile-filter-cat">Filter by Category:</label>
+        <select v-model="selectedCategory" id="mobile-category" class="form-select max-w-40 mr-5">
+          <option value="all">All</option>
+          <template v-for="category in views">
+            <option v-if="!category.name.includes('defaultCategoryFor')" :value="category">
+              <span>{{ category.name }}</span>
+            </option>
+          </template>
+        </select>
+      </div>
+      <div class="d-flex items-center p-3 mt-2">
+        <label for="mobile-category" class="mobile-filter-cat">Change View:</label>
+        <select @change="changeView" v-model="currentView" id="category" class="form-select max-w-40 mr-5">
+          <option value="all">All</option>
+          <option value="week">Weekly</option>
+          <option value="day">Daily</option>
+        </select>
+      </div>
+
+
+      <!-- Botões de lista, calendário e mapa -->
+      <div class="d-flex justify-content-center mt-2">
+        <button type="button" class="btn-toggle btn-list-show" :class="[!showEventList ? 'btn-primary' : 'btn-off']"
+          @click="toggleEventVisibility">
+          <span class="bi bi-list"></span>
+        </button>
+        <button type="button" class="btn-toggle btn-calendar-show" :class="[!showCalendar ? 'btn-primary' : 'btn-off']"
+          @click="toggleCalendar">
+          <span class="bi bi-calendar2-event"></span>
+        </button>
+        <button type="button" class="btn-toggle btn-map-show" :class="[!showMap ? 'btn-primary' : 'btn-off']"
+          @click="toggleMap">
+          <span class="bi bi-map"></span>
+        </button>
+      </div>
+
+      <!-- Conteúdo móvel -->
+      <div class="mobile-content">
+        <div class="d-flex">
+            <div class="reservation-container d-flex flex-column" style="overflow-y: auto; width: 70%;">
+              <h6 class="d-flex justify-content-center mt-3"><b>Add Events and Reservations</b></h6>
+              <div class="d-flex justify-content-center">
+                <div class="reservation-item" v-for="(reservation, index) in reservations" :key="index">
+                  <button v-if="reservation.label === 'Events'" @click="openDialog(null)">
+                    <div class="reservation-button">
+                      <span :class="reservation.icon" style="font-size: 20px;"></span>
+                      <span class="reservation-label" style="font-size: 10px;">{{ reservation.label }}</span>
+                    </div>
+                  </button>
+                  <button v-else @click="modelReservations(reservation)">
+                    <div class="reservation-button">
+                      <span :class="reservation.icon" style="font-size: 20px;"></span>
+                      <span class="reservation-label" style="font-size: 10px;">{{ reservation.label }}</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="reservation-container d-flex flex-column ml-2" style="overflow-y: auto; width: 29%;">
+              <div class="">
+                <h6 class="d-flex justify-content-center mt-3"><b>Budget</b></h6>
+                <p class="d-flex mt-3 justify-content-center" style="font-size: 24px;">{{ budget }}€</p>
+                <div class="d-flex justify-content-center">
+                  <button class="view-budget-details btn btn-secondary" @click="openBudgetModal">View details</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        <!-- Lista de eventos -->
+        <div v-if="showEventList">
+
+          <div>
+            <div class="d-flex w-full mt-1">
+              <button class="event-list-btn flex-1 border-b border-gray-300"
+                :class="{ 'border-b-0 bg-gray-100': isEventListVisible }" @click="setEventListVisible">Event
+                List</button>
+              <button class="reservation-list-btn flex-1 border-b border-gray-300"
+                :class="{ 'border-b-0 bg-gray-100': isReservationListVisible }"
+                @click="setReservationListVisible">Reservation
+                List</button>
+            </div>
+            <div class="container-list" style="overflow-y: auto">
+              <div v-if="isEventListVisible">
+                <div v-if="Object.keys(groupedEventsByCategory).length === 0" class="d-flex justify-content-center">
+                  <p>No events </p>
+                </div>
+              </div>
+
+              <div v-if="isEventListVisible" v-for="(categoryEvents, category) in groupedEventsByCategory"
+                :key="category" class="event-date mt-2">
+                <div
+                  v-if="category !== 'defaultCategoryForFlights' && category !== 'defaultCategoryForLodging' && category !== 'defaultCategoryForRentalCars' && category !== 'defaultCategoryForAttachments'"
+                  @click="toggleEventList(category)" class="date-trigger flex items-center cursor-pointer mb-2">
+                  <span :class="{
+                    'bi bi-caret-down-fill': isExpanded(category),
+                    'bi bi-caret-right-fill': !isExpanded(category),
+                  }" class="mr-2"></span>
+                  <div class="flex items-center bg-gray-100 rounded-md px-3 py-1" style="background-color: #f6f7fa">
+                    <h3 class="text-lg font-semibold">
+                      {{ getCategoryName(category) }}
+                    </h3>
+                  </div>
+                </div>
+                <div v-if="isExpanded(category)" class="event-list-popup panel panel-default">
+                  <div class="panel-body">
+                    <div v-for="event in categoryEvents" :key="event.title"
+                      class="popup-content relative p-3 mb-2 shadow-md"
+                      style=" border-radius: 0.5rem; background-color: white;">
+                      <div class="absolute top-4 left-4 w-2 rounded-full flex items-center justify-center "
+                        style="height: 80%;" :style="{ backgroundColor: getEventColor(event.calendarId) }"></div>
+                      <div class="flex justify-between items-center ml-5">
+                        <div>
+                          <h5 class="font-semibold text-sm">{{ event.title }}</h5>
+                          <p class="text-gray-500 text-xs">{{ formatDateTime(event.start) }}</p>
+                          <p class="text-gray-500 text-xs"> Price:{{ event.price !== "" ? event.price + "€" : " -" }}
+                          </p>
+                          <p class="text-sm m-0"> {{ event.description === "" ? "&nbsp;" : event.description }} </p>
+                        </div>
+                        <div class="d-flex flex-column gap-2 justify-content-center">
+                          <button type="button" class="btn btn-sm btn-primary bi bi-eye-fill mr-2"
+                            @click="viewEvent(event.id)"></button>
+                          <button v-if="isOrganizer" type="button"
+                            class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
+                            @click="editEvent(event.id)"></button>
+                          <button v-if="isOrganizer" type="button" class="btn btn-sm btn-danger mr-2 bi bi-trash-fill"
+                            @click="deleteEvent(event.id)"></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- RESERVAS -->
+              <div v-if="isReservationListVisible">
+                <div
+                  v-if="!allReservations.flights.length && !allReservations.lodging.length && !allReservations.rentalCars.length > 0"
+                  class="d-flex justify-content-center">
+                  <p>No reservations </p>
+                </div>
+                <!-- Voos -->
+                <div v-if="allReservations.flights.length > 0" class="event-date">
+                  <div @click="toggleEventList('flights')" class="date-trigger flex items-center cursor-pointer mb-2">
+                    <span
+                      :class="{ 'bi bi-caret-down-fill': isExpanded('flights'), 'bi bi-caret-right-fill': !isExpanded('flights') }"
+                      class="mr-2"></span>
+                    <div class="flex items-center bg-gray-100 rounded-md px-3 py-1" style="background-color: #f6f7fa">
+                      <h3 class="text-lg font-semibold"> Flights </h3>
+                    </div>
+                  </div>
+                  <div v-if="isExpanded('flights')" class="event-list-popup panel panel-default">
+                    <div class="panel-body">
+                      <div v-for="event in allReservations.flights" :key="event.title"
+                        class="popup-content relative p-3 mb-2 shadow-md"
+                        style=" border-radius: 0.5rem; background-color: white;">
+                        <!-- Conteúdo do evento -->
+                        <div class="flex justify-between items-center ml-5">
+                          <div class="absolute top-4 left-4 w-2 rounded-full flex items-center justify-center"
+                            style="background-color: #5cceee; height: 85%;"></div>
+                          <div style="max-width: 50%;">
+                            <h5 class="font-semibold text-sm">{{ event.iataCodeDeparture }} <i
+                                class="bi bi-arrow-right fs-6"></i> {{ event.iataCodeArrival }}</h5>
+                            <p class="text-gray-500 text-xs">{{ formatDateTime(event.departureDate) }}</p>
+                            <p class="text-gray-500 text-xs">Price: {{ event.price ? event.price + "€" : "-" }}</p>
+                            <p class="text-sm">{{ event.notes === "" ? "" : event.notes }}</p>
+                          </div>
+                          <div class="d-flex flex-column gap-2 justify-content-center">
+                            <button type="button" class="btn btn-sm btn-primary bi bi-eye-fill mr-2"
+                              @click="viewReservation(event.id)"></button>
+                            <button v-if="isOrganizer" type="button"
+                              class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
+                              @click="editReservation(event.id)"></button>
+                            <button v-if="isOrganizer" type="button" class="btn btn-sm btn-danger bi bi-trash-fill mr-2"
+                              @click="deleteReservation(event.id)"></button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Hospedagem -->
+                <div v-if="allReservations.lodging.length > 0" class="event-date">
+                  <div @click="toggleEventList('lodging')" class="date-trigger flex items-center cursor-pointer mb-2">
+                    <span :class="{
+                      'bi bi-caret-down-fill': isExpanded('lodging'),
+                      'bi bi-caret-right-fill': !isExpanded('lodging'),
+                    }" class="mr-2"></span>
+                    <div class="flex items-center bg-gray-100 rounded-md px-3 py-1" style="background-color: #f6f7fa">
+                      <h3 class="text-lg font-semibold"> Lodging </h3>
+                    </div>
+                  </div>
+                  <div v-if="isExpanded('lodging')" class="event-list-popup panel panel-default">
+                    <div class="panel-body">
+                      <div v-for="event in allReservations.lodging" :key="event.title"
+                        class="popup-content relative p-3 mb-2 shadow-md"
+                        style=" border-radius: 0.5rem; background-color: white;">
+                        <!-- Conteúdo do evento -->
+                        <div class="flex justify-between items-center ml-5">
+                          <div class="absolute top-4 left-4 w-2 rounded-full flex items-center justify-center"
+                            style="background-color: #f6e58d; height: 85%;"></div>
+                          <div style="max-width: 70%;">
+                            <h5 class="font-semibold text-sm">{{ event.location }}</h5>
+                            <p class="text-gray-500 text-xs">Check-in: {{ formatDateTime(event.checkInDate) }}</p>
+                            <p class="text-gray-500 text-xs">Check-out: {{ formatDateTime(event.checkOutDate) }}</p>
+                            <p class="text-gray-500 text-xs">Price: {{ event.price ? event.price + "€" : "-" }}</p>
+                            <p class="text-sm">{{ event.notes === "" ? "" : event.notes }}</p>
+                          </div>
+                          <div class="d-flex flex-column gap-2 justify-content-center">
+                            <button type="button" class="btn btn-sm btn-primary bi bi-eye-fill mr-2"
+                              @click="viewReservation(event.id)"></button>
+                            <button v-if="isOrganizer" type="button"
+                              class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
+                              @click="editReservation(event.id)"></button>
+                            <button v-if="isOrganizer" type="button" class="btn btn-sm btn-danger bi bi-trash-fill mr-2"
+                              @click="deleteReservation(event.id)"></button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Aluguel de carros -->
+                <div v-if="allReservations.rentalCars.length > 0" class="event-date">
+                  <div @click="toggleEventList('rentalCars')"
+                    class="date-trigger flex items-center cursor-pointer mb-2">
+                    <span
+                      :class="{ 'bi bi-caret-down-fill': isExpanded('rentalCars'), 'bi bi-caret-right-fill': !isExpanded('rentalCars') }"
+                      class="mr-2"></span>
+                    <div class="flex items-center bg-gray-100 rounded-md px-3 py-1" style="background-color: #f6f7fa">
+                      <h3 class="text-lg font-semibold">
+                        Rental Cars
+                      </h3>
+                    </div>
+                  </div>
+                  <div v-if="isExpanded('rentalCars')" class="event-list-popup panel panel-default">
+                    <div class="panel-body">
+                      <div v-for="event in allReservations.rentalCars" :key="event.title"
+                        class="popup-content relative p-3 mb-2 shadow-md"
+                        style=" border-radius: 0.5rem; background-color: white;">
+                        <!-- Conteúdo do evento -->
+                        <div class="flex justify-between items-center ml-5">
+                          <div class="absolute top-4 left-4 w-2 rounded-full flex items-center justify-center"
+                            style="background-color: #f9ca24; height: 85%;"></div>
+                          <div style="max-width: 70%;">
+                            <h5 class="font-semibold text-sm">{{ event.company }}</h5>
+                            <p class="text-gray-500 text-xs">Drop off Date: {{ formatDateTime(event.pickUpDate) }}</p>
+                            <p class="text-gray-500 text-xs">Drop off Date: {{ formatDateTime(event.dropOffDate) }}</p>
+                            <p class="text-gray-500 text-xs">Price: {{ event.price ? event.price + "€" : "-" }}</p>
+                            <p class="text-sm">{{ event.notes === "" ? "&nbsp;" : event.notes }}</p>
+                          </div>
+                          <div class="d-flex flex-column gap-2 justify-content-center">
+                            <button type="button" class="btn btn-sm btn-primary bi bi-eye-fill mr-2"
+                              @click="viewReservation(event.id)"></button>
+                            <button v-if="isOrganizer" type="button"
+                              class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
+                              @click="editReservation(event.id)"></button>
+                            <button v-if="isOrganizer" type="button" class="btn btn-sm btn-danger bi bi-trash-fill mr-2"
+                              @click="deleteReservation(event.id)"></button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calendário móvel -->
+        <div v-show="showCalendar">
+          <div class="flex items-center justify-center space-x-4 mb-2 mt-2" v-if="showCalendar">
+            <div class="text-center" style="flex: auto">
+              <button @click="handlePrevious" type="button" class="btn btn-light bi bi-arrow-left"
+                :disabled="handleDisabledPrevious"></button>
+              <button type="button" class="btn btn-light mx-3 mr-3" @click="handleToday">
+                Start
+              </button>
+              <button type="button" class="btn btn-light bi bi-arrow-right mr-3" @click="handleNext"
+                :disabled="handleDisabledNext"></button>
+              <label v-if="calendarRef">{{ formatarData(calendarRef.getInstance().getDateRangeStart()) }} &nbsp;</label>
+              <label v-if="calendarRef && currentView === 'week' || currentView === 'all'"> ~ {{
+                formatarData(calendarRef.getInstance().getDateRangeEnd()) }}</label>
+            </div>
+          </div>
+          <tui-calendar class="my-calendar" ref="calendarRef" view="week" :use-form-popup="false"
+            :use-detail-popup="false" :week="options.week" :calendars="views" :events="events" :timezone="{
+              timezoneName: 'Europe/Lisbon',
+              displayLabel: 'GMT+01:00',
+              tooltip: 'Lisbon',
+            }" :template="{
+            timegridDisplayPrimaryTime: function (time) {
+              var hour = time.time.d.getHours();
+              return hour + ':00';
+            },
+            milestoneTitle: function (model) {
+              return `aaaaa${model.title}`;
+            },
+          }" />
+        </div>
+
+        <!-- Mapa móvel -->
+        <div v-if="showMap">
+          <TripMap :events="events" :center="center" @eventClicked="eventClickedInMap" :key="mapKey"></TripMap>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div v-else class="container-full shadow-lg">
     <div class="d-flex" style="width: 100%; justify-content: space-between">
       <button class="profile-btns"
         style="border-bottom: 2px solid #3b82f6; margin-top: 20px;padding-bottom: 20px; color:#3b82f6" @click=""><i
@@ -17,15 +354,21 @@
     <div class="d-flex items-center p-3 mt-2">
       <!-- FILTER BY CATEGORY -->
       <label for="category" class="filter-cat">Filter by Category:</label>
-      <select v-model="selectedCategory" id="category" class="form-select max-w-80 mr-20">
+      <select v-model="selectedCategory" id="category" class="form-select max-w-40 mr-5">
         <option value="all">All</option>
         <template v-for="category in views">
           <option v-if="!category.name.includes('defaultCategoryFor')" :value="category">
             <span>{{ category.name }}</span>
           </option>
         </template>
-
       </select>
+      <label for="category" class="filter-cat">Change view:</label>
+      <select @change="changeView" v-model="currentView" id="category" class="form-select max-w-40 mr-5">
+        <option value="all">All</option>
+        <option value="week">Weekly</option>
+        <option value="day">Daily</option>
+      </select>
+
       <!-- LIST | CALENDAR | MAP BUTTONS -->
       <div class="m-auto">
         <button type="button" class="btns-toggle btn-list-show"
@@ -46,7 +389,13 @@
       </div>
     </div>
 
-    <div class="row p-3">
+    <div v-if="isLoading"class="d-flex justify-content-center align-items-center mt-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+
+    <div v-show="!isLoading" class="row p-3">
       <!-- Lista de Eventos -->
       <div v-if="showEventList" class="col-md-4">
         <div class="d-flex">
@@ -173,7 +522,8 @@
                         <div class="d-flex flex-column gap-2 justify-content-center">
                           <button type="button" class="btn btn-sm btn-primary bi bi-eye-fill mr-2"
                             @click="viewReservation(event.id)"></button>
-                          <button v-if="isOrganizer" type="button" class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
+                          <button v-if="isOrganizer" type="button"
+                            class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
                             @click="editReservation(event.id)"></button>
                           <button v-if="isOrganizer" type="button" class="btn btn-sm btn-danger bi bi-trash-fill mr-2"
                             @click="deleteReservation(event.id)"></button>
@@ -214,7 +564,8 @@
                         <div class="d-flex flex-column gap-2 justify-content-center">
                           <button type="button" class="btn btn-sm btn-primary bi bi-eye-fill mr-2"
                             @click="viewReservation(event.id)"></button>
-                          <button v-if="isOrganizer" type="button" class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
+                          <button v-if="isOrganizer" type="button"
+                            class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
                             @click="editReservation(event.id)"></button>
                           <button v-if="isOrganizer" type="button" class="btn btn-sm btn-danger bi bi-trash-fill mr-2"
                             @click="deleteReservation(event.id)"></button>
@@ -256,7 +607,8 @@
                         <div class="d-flex flex-column gap-2 justify-content-center">
                           <button type="button" class="btn btn-sm btn-primary bi bi-eye-fill mr-2"
                             @click="viewReservation(event.id)"></button>
-                          <button v-if="isOrganizer" type="button" class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
+                          <button v-if="isOrganizer" type="button"
+                            class="btn btn-sm btn-success mr-2 bi bi-pencil-square"
                             @click="editReservation(event.id)"></button>
                           <button v-if="isOrganizer" type="button" class="btn btn-sm btn-danger bi bi-trash-fill mr-2"
                             @click="deleteReservation(event.id)"></button>
@@ -283,14 +635,15 @@
         <div class="w-full h-full">
           <div class="flex items-center justify-center space-x-4 mb-2" v-if="showCalendar">
             <div class="text-center" style="flex: auto">
-              <button @click="previousWeek" type="button" class="btn btn-light bi bi-arrow-left"
-                :disabled="!isDateInRange(previousWeekDisable)"></button>
-              <button type="button" class="btn btn-light mx-3 mr-3" @click="todayWeek">
+              <button @click="handlePrevious" type="button" class="btn btn-light bi bi-arrow-left"
+                :disabled="handleDisabledPrevious"></button>
+              <button type="button" class="btn btn-light mx-3 mr-3" @click="handleToday">
                 Start
               </button>
-              <button type="button" class="btn btn-light bi bi-arrow-right mr-3" @click="nextWeek"
-                :disabled="!isDateInRange(nextWeekDisable)"></button>
-              <label v-if="calendarRef">{{ formatarData(calendarRef.getInstance().getDateRangeStart()) }} ~ {{
+              <button type="button" class="btn btn-light bi bi-arrow-right mr-3" @click="handleNext"
+                :disabled="handleDisabledNext"></button>
+              <label v-if="calendarRef">{{ formatarData(calendarRef.getInstance().getDateRangeStart()) }} &nbsp;</label>
+              <label v-if="calendarRef && currentView === 'week' || currentView === 'all' "> ~ {{
                 formatarData(calendarRef.getInstance().getDateRangeEnd()) }}</label>
             </div>
           </div>
@@ -762,8 +1115,9 @@
                   </div>
                   <div class="col-4 ml-2">
                     <label for="price" class="form-label text-gary-700 font-bold">Price</label>
-                    <input id="price" class="form-control" placeholder="Price" v-model="formData.price" inputmode="numeric"
-                    pattern="[0-9]*"  @input="formData.price = formData.price.replace(/[^0-9.]/g, '').replace(/^([^.]*\.)|\./g, '$1')"></input>
+                    <input id="price" class="form-control" placeholder="Price" v-model="formData.price"
+                      inputmode="numeric" pattern="[0-9]*"
+                      @input="formData.price = formData.price.replace(/[^0-9.]/g, '').replace(/^([^.]*\.)|\./g, '$1')"></input>
                   </div>
                 </div>
               </div>
@@ -831,6 +1185,7 @@ import axios from "axios";
 import { TZDate } from "@toast-ui/calendar";
 import { collection, getDocs, getFirestore, doc, addDoc, Timestamp, updateDoc, deleteDoc, where, query, getDoc } from "firebase/firestore";
 import { useToast } from "vue-toastification";
+import { map } from "leaflet";
 
 const route = useRoute();
 const router = useRouter();
@@ -909,6 +1264,14 @@ const newRentalCar = ref({
 const showEventList = ref(true);
 const isEventListVisible = ref(true);
 const isReservationListVisible = ref(false);
+const isMobileView = ref(window.innerWidth <= 768);
+const selectedDay = ref();
+const initialDate = ref();
+const currentView = ref('week');
+const events = ref([]);
+const isLoading = ref(true);
+const expandedDates = ref([]);
+
 
 function formatDateTime(dateTimeString) {
   const date = new Date(dateTimeString);
@@ -922,10 +1285,10 @@ function formatDateTime(dateTimeString) {
 }
 
 const isOrganizer = computed(() => {
-    //console.log("==========> currentUserId.value: ", currentUserId.value);
-    //console.log("==========> organizerId.value: ", organizerId.value);
-    
-    return currentUserId.value === organizerId.value;
+  //console.log("==========> currentUserId.value: ", currentUserId.value);
+  //console.log("==========> organizerId.value: ", organizerId.value);
+
+  return currentUserId.value === organizerId.value;
 });
 
 const setEventListVisible = () => {
@@ -970,7 +1333,7 @@ const formatarData = (data) => {
 
 function modelReservations(reservation) {
 
-  if(!isOrganizer.value) {
+  if (!isOrganizer.value) {
     toast.error("You don't have permission to add reservations to this trip.");
     return;
   }
@@ -1248,7 +1611,7 @@ watch(newReservation, async (newValue) => {
 
 async function fetchIATACode(lat, lng) {
   try {
-    const response = await axios.get(`https://iatageo.com/getCode/${lat}/${lng}`);
+    const response = await axios.get(`http://iatageo.com/getCode/${lat}/${lng}`);
     console.log('response', response.data.IATA);
     return response.data.IATA;
   } catch (error) {
@@ -1270,14 +1633,87 @@ const calculateBudget = () => {
 };
 
 watch(selectedCategory, (newValue) => {
-  if (selectedCategory.value === "all") {
-    events.value = auxEvents.value;
+  if (currentView.value === 'all') {
+    if (selectedCategory.value === "all") {
+      events.value = auxEvents.value;
+      disableDays();
+      mapKey.value += 1;
+    } else {
+      events.value = allEvents.value.filter(
+        (event) => event.calendarId === selectedCategory.value.id
+      );
+      //allEvents.value = auxEvents.value;
+      mapKey.value += 1;
+    }
+  }
+  else if (currentView.value === 'week' ){
+    if (selectedCategory.value === "all") {
+      events.value = events.value = allEvents.value.filter(
+      (event) =>
+        event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+        event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+      );
+      
+      mapKey.value += 1;
+    } else {
+      events.value = allEvents.value.filter(
+      (event) =>
+        event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+        event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+      );
+      events.value = events.value.filter(
+        (event) => event.calendarId === selectedCategory.value.id
+      );
+      //allEvents.value = auxEvents.value;
+      mapKey.value += 1;
+    }
+
+  }
+  else if (currentView.value === 'day') {
+    if (selectedCategory.value === "all") {
+      events.value = allEvents.value.filter(
+        (event) =>
+          new Date(event.start).toISOString().slice(0, 10) ===
+          addDays(calendarRef.value.getInstance().getDate(), 1)
+      );
+      mapKey.value += 1;
+    } else {
+      events.value = allEvents.value.filter(
+        (event) =>
+          new Date(event.start).toISOString().slice(0, 10) ===
+          addDays(calendarRef.value.getInstance().getDate(), 1)
+      );
+      events.value = events.value.filter(
+        (event) => event.calendarId === selectedCategory.value.id
+      );
+      mapKey.value += 1;
+    }
+  }
+});
+
+watch(currentView, (newValue) => {
+  if (newValue === "week" || newValue === "all") {
+    calendarRef.value.getInstance().changeView("week");
+    calendarRef.value.getInstance().render();
+    todayWeek();
+
+    events.value = allEvents.value;
     mapKey.value += 1;
-  } else {
+
+
+  } else if (newValue === "day") {
     events.value = allEvents.value.filter(
-      (event) => event.calendarId === selectedCategory.value.id
+      (event) =>
+        new Date(event.start).toISOString().slice(0, 10) ===
+        addDays(calendarRef.value.getInstance().getDate(), 1)
     );
-    allEvents.value = auxEvents.value;
+
+    if (selectedCategory.value !== "all") {
+      events.value = events.value.filter(
+        (event) => event.calendarId === selectedCategory.value.id
+      );
+    }
+
     mapKey.value += 1;
   }
 });
@@ -1333,7 +1769,7 @@ async function getTrip() {
   center.value = trip.value.center;
   organizerId.value = trip.value.organizer;
 
-  trip.value.categories.forEach((category) => {
+  /*trip.value.categories.forEach((category) => {
     const data = {
       id: category.name.toLowerCase(),
       name: category.name,
@@ -1341,14 +1777,14 @@ async function getTrip() {
       borderColor: category.color,
       dragBackgroundColor: category.color,
     };
-    views.value.push(data);
-  });
-
+    views.value.push(data);});*/
+  getCategories();
   startDate.value = trip.value.start_date;
+  //selectedDay.value = new Date(trip.value.start_date).toISOString().slice(0, 10);
+  initialDate.value = new Date(trip.value.start_date).toISOString().slice(0, 10);
   endDate.value = trip.value.end_date;
   calendarRef.value.getInstance().setDate(trip.value.start_date);
-  mapRef.value.map.setCenter(center.value);
-  mapRef.value.map.setZoom(6);
+
 
   disableDaysDate.value = new Date(trip.value.start_date);
   const diaSemana = disableDaysDate.value.getDay();
@@ -1359,9 +1795,32 @@ async function getTrip() {
   previousWeekDisable.value = new Date(new Date(disableDaysDate.value.getTime() - 7 * 24 * 60 * 60 * 1000));
   nextWeekDisable.value = new Date(new Date(disableDaysDate.value.getTime() + 7 * 24 * 60 * 60 * 1000));
   disableDays();
+  currentView.value = 'all';
 
   triploaded.value = true;
 }
+
+const categories = ref([]);
+
+async function getCategories() {
+  console.log('organizerId', organizerId.value);
+  const querySnapshot = await getDocs(query(collection(db, 'categories'), where('userId', '==', organizerId.value)));
+  querySnapshot.forEach((doc) => {
+    categories.value.push({ uid: doc.id, ...doc.data() });
+  });
+
+  categories.value.forEach((category) => {
+    const data = {
+      id: category.name.toLowerCase(),
+      name: category.name,
+      backgroundColor: category.color,
+      borderColor: category.color,
+      dragBackgroundColor: category.color,
+    };
+    views.value.push(data);
+  });
+}
+
 
 const disableDays = () => {
   calendarRef.value.getInstance().render();
@@ -1391,36 +1850,242 @@ function previousWeek() {
   disableDaysDate.value.setDate(disableDaysDate.value.getDate() - 7);
   previousWeekDisable.value = new Date(disableDaysDate.value.getTime() - 1 * 24 * 60 * 60 * 1000);
   nextWeekDisable.value = new Date(disableDaysDate.value.getTime() + 7 * 24 * 60 * 60 * 1000);
-  console.log('previous', disableDaysDate.value);
-  console.log('previousDisable', previousWeekDisable.value);
   disableDays();
+  if(currentView.value === 'week'){
+    events.value = allEvents.value.filter(
+      (event) =>
+        event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+        event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+    );
+    mapKey.value += 1;
+  }
 }
 
 function nextWeek() {
   calendarRef.value.getInstance().next();
   disableDaysDate.value.setDate(disableDaysDate.value.getDate() + 7);
+  console.log('disableDaysDate', disableDaysDate.value)
   nextWeekDisable.value = new Date(disableDaysDate.value.getTime() + 7 * 24 * 60 * 60 * 1000);
   previousWeekDisable.value = new Date(disableDaysDate.value.getTime() - 1 * 24 * 60 * 60 * 1000);
-  console.log('nextDisable', nextWeekDisable.value);
-  console.log('previousDisable', previousWeekDisable.value);
-  console.log('next', disableDaysDate.value);
   disableDays();
+  if(currentView.value === 'week'){
+    events.value = allEvents.value.filter(
+      (event) =>
+        event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+        event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+  );
+
+  mapKey.value += 1;
+  }
 }
 
 function todayWeek() {
   calendarRef.value.getInstance().setDate(trip.value.start_date);
-  disableDaysDate.value = startCalendarDay.value;
+  disableDaysDate.value.setDate(startCalendarDay.value.getDate() + 0);
   previousWeekDisable.value = new Date(disableDaysDate.value.getTime() - 1 * 24 * 60 * 60 * 1000);
   nextWeekDisable.value = new Date(disableDaysDate.value.getTime() + 7 * 24 * 60 * 60 * 1000);
-  console.log('previousDisable', previousWeekDisable.value);
-  console.log('nextDisable', nextWeekDisable.value);
-  console.log('today', disableDaysDate.value);
   disableDays();
+  if(currentView.value === 'week'){
+    events.value = allEvents.value.filter(
+      (event) =>
+        event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+        event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+    );
+    mapKey.value += 1;
+  }
+  
+  
 }
 
-const events = ref([]);
-const isLoading = ref(true);
-const expandedDates = ref([]);
+const disableNextDay = ref(false);
+const disablePreviousDay = ref(false);
+
+function calculateDisabledDays() {
+  if (currentView.value === 'day') {
+    disablePreviousDay.value = addDays(calendarRef.value.getInstance().getDate(), 1) === startDate.value;
+    disableNextDay.value = addDays(calendarRef.value.getInstance().getDate(), 1) === endDate.value;
+
+  } else {
+    disablePreviousDay.value = !isDateInRange(previousWeekDisable.value);
+    disableNextDay.value = !isDateInRange(nextWeekDisable.value);
+  }
+}
+
+const nextDay = () => {
+
+  calendarRef.value.getInstance().next();
+};
+
+const previousDay = () => {
+  if (calendarRef.value.getInstance().getDate() === startDate.value) {
+    disablePreviousDay.value = true;
+  } else {
+    disablePreviousDay.value = false;
+  }
+
+  calendarRef.value.getInstance().prev();
+};
+
+const handleNext = () => {
+  if (currentView.value === 'day') {
+    nextDay();
+    calculateDisabledDays();
+    events.value = allEvents.value.filter(
+      (event) =>
+        new Date(event.start).toISOString().slice(0, 10) ===
+        addDays(calendarRef.value.getInstance().getDate(), 1)
+    );
+    if (selectedCategory.value === "all" || selectedCategory.value === "") {
+      events.value = allEvents.value.filter(
+        (event) =>
+          new Date(event.start).toISOString().slice(0, 10) ===
+          addDays(calendarRef.value.getInstance().getDate(), 1)
+      );
+    } else {
+
+      events.value = allEvents.value.filter(
+        (event) => event.calendarId === selectedCategory.value.id
+      );
+      events.value = events.value.filter(
+        (event) =>
+          new Date(event.start).toISOString().slice(0, 10) ===
+          addDays(calendarRef.value.getInstance().getDate(), 1)
+      );
+    }
+    mapKey.value += 1;
+  } else {
+    nextWeek();
+    if(currentView.value === 'week'){
+      if(selectedCategory.value === "all" || selectedCategory.value === ""){
+        events.value = allEvents.value.filter(
+          (event) =>
+            event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+            event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+        );
+      } else {
+        events.value = allEvents.value.filter(
+          (event) =>
+            event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+            event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+        );
+        events.value = events.value.filter(
+          (event) => event.calendarId === selectedCategory.value.id
+        );
+      }
+    }
+  }
+};
+
+const handlePrevious = () => {
+  if (currentView.value === 'day') {
+    previousDay();
+    calculateDisabledDays();
+    events.value = allEvents.value.filter(
+      (event) =>
+        new Date(event.start).toISOString().slice(0, 10) ===
+        addDays(calendarRef.value.getInstance().getDate(), 1)
+    );
+    if (selectedCategory.value === "all" || selectedCategory.value === "") {
+      events.value = allEvents.value.filter(
+        (event) =>
+          new Date(event.start).toISOString().slice(0, 10) ===
+          addDays(calendarRef.value.getInstance().getDate(), 1)
+      );
+    } else {
+
+      events.value = allEvents.value.filter(
+        (event) => event.calendarId === selectedCategory.value.id
+      );
+      events.value = events.value.filter(
+        (event) =>
+          new Date(event.start).toISOString().slice(0, 10) ===
+          addDays(calendarRef.value.getInstance().getDate(), 1)
+      );
+    }
+    mapKey.value += 1;
+  } else {
+    previousWeek();
+
+    if(currentView.value === 'week'){
+      if(selectedCategory.value === "all" || selectedCategory.value === ""){
+        events.value = allEvents.value.filter(
+          (event) =>
+            event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+            event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+        );
+      } else {
+        events.value = allEvents.value.filter(
+          (event) =>
+            event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+            event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+        );
+        events.value = events.value.filter(
+          (event) => event.calendarId === selectedCategory.value.id
+        );
+      }
+    }
+  }
+};
+
+const handleToday = () => {
+  if (currentView.value === 'week' || currentView.value === 'all') {
+    todayWeek();
+  } else {
+    calendarRef.value.getInstance().setDate(trip.value.start_date);
+    todayDay();
+  }
+};
+
+const todayDay = () =>{
+  events.value = allEvents.value.filter(
+      (event) =>
+        new Date(event.start).toISOString().slice(0, 10) ===
+        addDays(calendarRef.value.getInstance().getDate(), 1)
+    );
+
+    if (selectedCategory.value !== "all") {
+      events.value = events.value.filter(
+        (event) => event.calendarId === selectedCategory.value.id
+      );
+    }
+
+    calculateDisabledDays();
+    events.value = allEvents.value.filter(
+      (event) =>
+        new Date(event.start).toISOString().slice(0, 10) ===
+        addDays(calendarRef.value.getInstance().getDate(), 1)
+    );
+    if (selectedCategory.value === "all" || selectedCategory.value === "") {
+      events.value = allEvents.value.filter(
+        (event) =>
+          new Date(event.start).toISOString().slice(0, 10) ===
+          addDays(calendarRef.value.getInstance().getDate(), 1)
+      );
+    } else {
+
+      events.value = allEvents.value.filter(
+        (event) => event.calendarId === selectedCategory.value.id
+      );
+      events.value = events.value.filter(
+        (event) =>
+          new Date(event.start).toISOString().slice(0, 10) ===
+          addDays(calendarRef.value.getInstance().getDate(), 1)
+      );
+    }
+    mapKey.value += 1;
+
+}
+
+const handleDisabledPrevious = computed(() => {
+  calculateDisabledDays();
+  return disablePreviousDay.value;
+});
+
+// Computed para desabilitar o botão Next
+const handleDisabledNext = computed(() => {
+  calculateDisabledDays();
+  return disableNextDay.value;
+});
 
 const groupedEvents = computed(() => {
   const grouped = {};
@@ -1476,7 +2141,7 @@ async function getEvents() {
   const eventos = await getDocs(
     query(collection(db, "events"), where("tripId", "==", tripId.value))
   );
-  console.log(eventos.docs.map((doc) => doc.data()));
+
 
   eventos.forEach((event) => {
     const data = {
@@ -1498,9 +2163,9 @@ async function getEvents() {
     events.value.push(data);
   });
 
-  isLoading.value = false;
   allEvents.value = events.value;
   auxEvents.value = events.value;
+
 
   if (selectedCategory.value === "all" || selectedCategory.value === "") {
     events.value = auxEvents.value;
@@ -1695,6 +2360,8 @@ async function getReservations() {
   mapKey.value += 1;
   calculateBudget();
 
+  isLoading.value = false;
+
 }
 
 /////  Formulário pop-up
@@ -1729,7 +2396,7 @@ function formatLocalISODate(date) {
 
 const openDialog = (event) => {
 
-  if(!isOrganizer.value) {
+  if (!isOrganizer.value) {
     toast.error("You don't have permission to add events to this trip");
     return;
   }
@@ -1756,7 +2423,7 @@ const eventoSelecionado = ref(null);
 
 const editEvent = (eventId) => {
 
-  if(!isOrganizer.value) {
+  if (!isOrganizer.value) {
     toast.error("You don't have permission to edit events in this trip");
     return;
   }
@@ -1814,7 +2481,7 @@ const viewReservation = (reservationId) => {
 
 const editReservation = (reservationId) => {
 
-  if(!isOrganizer.value) {
+  if (!isOrganizer.value) {
     toast.error("You don't have permission to edit reservations in this trip");
     return;
   }
@@ -2060,6 +2727,8 @@ async function criarEvento(evento) {
       console.log("Evento criado com sucesso!", evento);
       getEvents();
       getReservations();
+
+      
       closeDialog();
       markerCoordenates.value = null;
     } catch (error) {
@@ -2399,9 +3068,68 @@ const isDateInRange = (date) => {
   return date >= new Date(startDate.value) && date <= new Date(endDate.value);
 };
 
+const changeView = () => {
+
+  if(currentView.value === 'all'){
+    calendarRef.value.getInstance().changeView('week');
+    calendarRef.value.getInstance().render();
+    disableDays();
+    events.value = allEvents.value;
+    selectedCategory.value = "all";
+  }else{
+
+    calendarRef.value.getInstance().changeView(currentView.value);
+  if (currentView.value === 'week') {
+
+    calendarRef.value.getInstance().render();
+    disableDays();
+    //events.value = allEvents.value;
+    //ir buscar o inicio e o fim da semana e ver os eventos que estao entre essas datas
+    events.value = allEvents.value.filter(
+      (event) =>
+        event.start >= new Date(calendarRef.value.getInstance().getDateRangeStart()) &&
+        event.end <= new Date(calendarRef.value.getInstance().getDateRangeEnd())
+    );
+    
+    
+    selectedCategory.value = "all";
+    mapKey.value += 1;
+  }
+  else {
+
+    if (addDays(calendarRef.value.getInstance().getDate(), 1) === endDate.value) {
+      disableNextDay.value = true;
+    } else {
+      disableNextDay.value = false;
+    }
+
+    if (addDays(calendarRef.value.getInstance().getDate(), 1) === startDate.value) {
+
+      disablePreviousDay.value = true;
+    } else {
+      disablePreviousDay.value = false;
+    }
+
+    calculateDisabledDays();
+
+  }
+
+  }
+
+  
+  //console.log(calendarRef.value.getInstance().getDate());
+};
+
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result.toISOString().slice(0, 10);
+}
+
+
 ///////
 onMounted(async () => {
-  
+
   auth.onAuthStateChanged(user => {
     if (user) {
       currentUserId.value = user.uid;
@@ -2413,7 +3141,7 @@ onMounted(async () => {
 
 
   calendarRef.value.getInstance().on("selectDateTime", (event) => {
-    if(isOrganizer.value ) {
+    if (isOrganizer.value) {
       if (isDateInRange(event.start) && isDateInRange(event.end) || event.end.toISOString().slice(0, 10) === new Date(endDate.value).toISOString().slice(0, 10)) {
         isNewEvent.value = true;
         console.log(event);
@@ -2451,7 +3179,7 @@ onMounted(async () => {
     }
   });
   calendarRef.value.getInstance().on("beforeUpdateEvent", (event) => {
-    if(!isOrganizer.value) {
+    if (!isOrganizer.value) {
       toast.error("You don't have permission to edit events in this trip");
       return;
     }
@@ -2464,6 +3192,7 @@ onMounted(async () => {
   getTrip();
   getEvents();
   getReservations();
+  
 });
 
 //watch do activateAutocomplete
@@ -2478,8 +3207,8 @@ watch(activateAutocomplete, async (newValue) => {
 
     });
     const Places = await loader.importLibrary('places')
-
-    // the center, defaultbounds are not necessary but are best practices to limit/focus search results
+    // the center, defaultbounds are not necessary but are best 
+    //practices to limit/focus search results
     const center = { lat: 34.082298, lng: -82.284777 };
     // Create a bounding box with sides ~10km away from the center point
     const defaultBounds = {
@@ -2488,25 +3217,24 @@ watch(activateAutocomplete, async (newValue) => {
       east: center.lng + 0.1,
       west: center.lng - 0.1,
     };
-
-    //this const will be the first arg for the new instance of the Places API
+    //this const will be the first arg for the new 
+    //instance of the Places API
     const input = document.getElementById("place"); //binds to our input element
     console.log('input', input);
-
     //this object will be our second arg for the new instance of the Places API
     const options = {
       bounds: defaultBounds, //optional
-      fields: ["address_components", "geometry", "icon", "name", "formatted_address"], //allows the api to accept these inputs and return similar ones
+      fields: ["address_components", "geometry", "icon", "name", "formatted_address"], 
+      //allows the api to accept these inputs and return similar ones
       strictBounds: false, //optional
     };
-
     // per the Google docs create the new instance of the import above. I named it Places.
     const autocomplete = new Places.Autocomplete(input, options);
-
     //add the place_changed listener to display results when inputs change
     autocomplete.addListener('place_changed', () => {
       autoCompleteNewEvent.value = true;
-      place.value = autocomplete.getPlace(); //this callback is inherent you will see it if you logged autocomplete
+      place.value = autocomplete.getPlace(); 
+      //this callback is inherent you will see it if you logged autocomplete
       console.log('place', place.value);
       formData.value.location = place.value.formatted_address;
       centerEvent.value = place.value.geometry.location.toJSON();
@@ -3076,5 +3804,52 @@ const validateNewRentalCar = () => {
 .custom-modal-title {
   font-size: 19px;
   font-weight: bold;
+}
+
+
+/* Estilos específicos para visualização móvel */
+.mobile-container {
+  padding: 10px;
+}
+
+.mobile-tabs {
+  margin-bottom: 20px;
+}
+
+.mobile-profile-btns {
+  flex: 1;
+  text-align: center;
+  margin: 0 5px;
+}
+
+.mobile-filter-cat {
+  flex: 1;
+  text-align: right;
+  margin-right: 10px;
+}
+
+.mobile-content {
+  margin-top: 20px;
+}
+
+.mobile-event-category {
+  margin-bottom: 15px;
+}
+
+.mobile-category-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.mobile-category-header h3 {
+  margin-left: 10px;
+}
+
+.mobile-event-item {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 10px;
 }
 </style>

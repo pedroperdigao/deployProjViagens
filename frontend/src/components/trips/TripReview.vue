@@ -1,6 +1,6 @@
 <template>
-  <div class="container-full" style="height: 74vh;">
-    <div class="d-flex" style="width: 100%; justify-content: space-between">
+  <div class="container-full shadow-lg" :style="{height:isMobileView ? '95vh' : '80vh'}">
+    <div v-if="!isMobileView"  class="d-flex" style="width: 100%; justify-content: space-between">
       <button class="profile-btns" style="border-bottom: 1px solid #c9c9c9; margin-top: 20px;padding-bottom: 20px;"
         @click="tabTripEvents(tripId)"><i class="bi bi-calendar-event-fill mx-2"></i>Events</button>
       <button class="profile-btns" style="border-bottom: 1px solid #c9c9c9; margin-top: 20px;padding-bottom: 20px;"
@@ -14,6 +14,30 @@
         style="border-bottom: 2px solid #3b82f6; margin-top: 20px;padding-bottom: 20px;color:#3b82f6"><i
           class="bi bi-star-fill mx-2"></i>Reviews</button>
     </div>
+    <div v-else class="mobile-container ">
+      <div  class="d-flex mobile-tabs" style="justify-content: space-between">
+        <button class="mobile-profile-btns" @click="tabTripEvents(tripId)">
+          <i class="bi bi-calendar-event-fill mx-2"></i>
+          Events
+        </button>
+        <button class="mobile-profile-btns" @click="tabTripInfo(tripId)">
+          <i class="bi bi-info-circle-fill mx-2"></i>
+          Trip Info
+        </button>
+        <button class="mobile-profile-btns" @click="tabTripMembers(tripId)">
+          <i class="bi bi-people-fill mx-2"></i>
+          Members
+        </button>
+        <button class="mobile-profile-btns" @click="tabTripMedia(tripId)">
+          <i class="bi bi-image-fill mx-2"></i>
+          Media
+        </button>
+        <button class="mobile-profile-btns" @click="tabTripReviews(tripId)">
+          <i class="bi bi-star-fill mx-2"></i>
+          Reviews
+        </button>
+      </div>
+    </div>
     <template v-if="loading">
       <div class="d-flex justify-content-center align-items-center mt-4">
         <div class="spinner-border text-primary" role="status">
@@ -22,9 +46,10 @@
       </div>
     </template>
     <template v-else>
-      <div class="container d-flex mt-3">
-        <h2 class="mt-2 font-bold" style="color: gold;">{{ (reviewMedia / reviews.length).toFixed(1) > 0 ? (reviewMedia /
-          reviews.length).toFixed(1) : "0.0"}}</h2>
+      <div class="container d-flex" :class="{'mt-3':!isMobileView}">
+        <h2 class="mt-2 font-bold" style="color: gold;">{{ (reviewMedia / reviews.length).toFixed(1) > 0 ? (reviewMedia
+          /
+          reviews.length).toFixed(1) : "0.0" }}</h2>
         <div class="star-container ml-4">
           <div class="star-review" v-for="n in 5" :key="n">
             <!-- se for .5 usar meia estrela-->
@@ -33,7 +58,7 @@
           </div>
         </div>
         <div class="ml-2 star-container" style="color: gray;">({{ reviews.length }} reviews)</div>
-        <div class="star-container" style="margin-left: auto;">
+        <div v-if ="!isMobileView" class="star-container" style="margin-left: auto;">
           <span>Sort by:</span>
           <select class="form-select ml-2" style="width: 150px;" v-model="sort">
             <option value="date" selected>Most Recent</option>
@@ -42,10 +67,24 @@
           </select>
         </div>
       </div>
+      <div v-if ="isMobileView" class="star-container mt-2"> 
+          <span>Sort by:</span>
+          <select class="form-select ml-2" style="width: 150px;" v-model="sort">
+            <option value="date" selected>Most Recent</option>
+            <option value="bestRating"> Best Rating</option>
+            <option value="worstRating"> Worst Rating</option>
+          </select>
+        </div>
       <!-- submit review -->
-      <div class="d-flex justify-content-between container mt-4 mb-4" style="margin-top: 60vh;">
-
-        <form class="needs-validation w-50" novalidate>
+      <form v-if="isMobileView" class="needs-validation w-30 p-3" novalidate>
+          <textarea id="comment" v-model="comment" class="form-control" type="text" placeholder="Write a review"
+            :class="{ 'is-valid': commentValid && formSubmitted, 'is-invalid': !commentValid && formSubmitted }"
+            @input="validateForm" required />
+          <div class="valid-feedback">Looks good!</div>
+          <div class="invalid-feedback">{{ errorMessage.comment }}</div>
+        </form>
+      <div class="d-flex justify-content-between container mb-4"  :class="{'mt-4':!isMobileView}">
+        <form v-if="!isMobileView" class="needs-validation w-50" novalidate>
           <textarea id="comment" v-model="comment" class="form-control" type="text" placeholder="Write a review"
             :class="{ 'is-valid': commentValid && formSubmitted, 'is-invalid': !commentValid && formSubmitted }"
             @input="validateForm" required />
@@ -115,22 +154,27 @@ const reviews = ref([]);
 const formSubmitted = ref(false);
 const commentValid = ref(false);
 const errorMessage = ({ comment: '' });
+const isMobileView = ref(window.innerWidth <= 768);
 
 const validateForm = () => {
   errorMessage.comment = '';
   commentValid.value = true
 
   // Validate Comment
-  if (!comment.value) {
+  if (!comment.value.trim()) {
     commentValid.value = false;
     errorMessage.comment = "Comment is required.";
-  } else if (comment.value.length < 3) {
+  } else if (comment.value.trim().length < 3) {
     commentValid.value = false;
-    errorMessage.comment = "Comment must be at least 5 characters long.";
+    errorMessage.comment = "Comment must be at least 3 characters long.";
+  } else {
+    commentValid.value = true;
+    errorMessage.comment = ""; // Reset error message if valid
   }
 
   //Validate Rating
   if (rating.value === 0) {
+    commentValid.value = false;
     errorMessage.comment = "Please select a rating.";
     return false;
   }
@@ -147,6 +191,12 @@ const setRating = (n) => {
 }
 
 const submitReview = async () => {
+  const existingReview = reviews.value.find(review => review.userId === loggedInUserId.value);
+  if (existingReview) {
+    toast.error('You have already submitted a review for this trip.');
+    return;
+  }
+
   formSubmitted.value = true;
   if (!validateForm()) {
     toast.error('Error submitting review. Please check for errors.');
@@ -221,10 +271,17 @@ const fetchReviews = async () => {
 }
 
 const convertToDate = (dateString) => {
-  const [day, month, year, time] = dateString.split(/\/|, /);
-  const [hours, minutes, seconds] = time.split(":");
-  return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+  // Split the date string into components
+  const [monthDayYear, time] = dateString.split(', ');
+  const [month, day, year] = monthDayYear.split('/');
+  const [timeWithoutPeriod, period] = time.split(' ');
+  const [hours, minutes, seconds] = timeWithoutPeriod.split(':');
+
+  // Create a new Date object with parsed components
+  // Note: month is 0-indexed in JavaScript Dates, so subtract 1 from month
+  return new Date(year, month - 1, day, period === 'PM' ? +hours + 12 : +hours, +minutes, +seconds);
 };
+
 
 const removeReview = async (reviewId) => {
   const isConfirmed = window.confirm('Are you sure you want to delete this review?');
@@ -328,7 +385,7 @@ const tabTripMedia = (tripId) => {
   background-size: cover;
   background-position: center;
   border-radius: 20px;
-  min-height: 70vh;
+  min-height: 80vh;
   margin-top: 10px;
 }
 
@@ -417,4 +474,19 @@ const tabTripMedia = (tripId) => {
 .star-review:hover~.star-review {
   color: gold;
 }*/
+
+
+.mobile-container {
+  padding: 10px;
+}
+
+.mobile-tabs {
+  margin-bottom: 20px;
+}
+
+.mobile-profile-btns {
+  flex: 1;
+  text-align: center;
+  margin: 0 5px;
+}
 </style>

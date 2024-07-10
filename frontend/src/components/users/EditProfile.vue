@@ -1,5 +1,5 @@
 <template>
-    <div class="container-full">
+    <div class="container-full shadow-lg">
         <div class="d-flex" style="width: 100%; justify-content: space-between">
             <button class="profile-btns" style="border-bottom: 1px solid #c9c9c9; margin-top: 20px;padding-bottom: 20px"
                 @click="viewProfile"><i class="bi bi-person-fill mx-2"></i>Profile</button>
@@ -8,34 +8,39 @@
                 @click="editProfile"><i class="bi bi-person-fill-gear mx-2"></i>Edit Profile</button>
             <button class="profile-btns"
                 style="border-bottom: 1px solid #c9c9c9; margin-top: 20px;padding-bottom: 20px;"
-                @click="phoneVerification"><i class="bi bi-eye mx-2"></i>Phone Verification</button>
-            <button class="profile-btns"
-                style="border-bottom: 1px solid #c9c9c9; margin-top: 20px;padding-bottom: 20px;"
                 @click="resetPassword"><i class="bi bi-key-fill mx-2"></i>Reset Password</button>
-            <button class="profile-btns"
-                style="border-bottom: 1px solid #c9c9c9; margin-top: 20px;padding-bottom: 20px;" @click="activityLog"><i
-                    class="bi bi-eye mx-2"></i>Activity Log</button>
         </div>
-        <div class="edit-profile d-flex justify-content-center mt-12 mx-20" style="width: 90%">
+        <div class="edit-profile justify-content-center " style="width: 90%"
+            :class="{ 'mx-20': !isMobileView, 'mt-12': !isMobileView, 'p-6': isMobileView, 'd-flex': !isMobileView }">
+
             <!-- Left side - Profile Card -->
-            <div class="mr-20">
-                <input type="file" ref="fileInput" style="display: none" @change="handleFileInput">
+            <div :class="{ 'mr-20': !isMobileView, 'mb-4': isMobileView }">
                 <p class="mb-2 font-semibold" style="color: #465666;">Upload Profile Picture</p>
-                <div ref="dropArea" class="image-box cursor-pointer" @dragover.prevent @drop="handleDrop"
-                    @click="handleButtonClick">
-                    <div v-if="!image" class="text-box text-center mt-10">
+                <div v-if="!imageSrc" ref="dropArea" class="image-box" @dragover.prevent @drop="handleDrop">
+                    <div class="text-box text-center mt-10">
                         <i class="bi bi-cloud-upload" style="color:#3b82f6; font-size: 5vh;"></i>
                         <p class="font-semibold m-1" style="color:#465666">Drag and drop image here</p>
                         <p class="m-1">or</p>
-                        <button class="shadow py-2 px-3 font-semibold rounded-full mt-2" type="button"
+                        <button class="shadow py-2 px-3 font-semibold rounded-full mt-2" @click="imageInput.click()"
                             style="background-color:#3b82f6; color:white; font-size: 14px;">Browse Image</button>
                     </div>
-                    <img v-else :src="image" alt="Uploaded Image"
-                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px">
+                    <input type="file" ref="imageInput" accept=".jpg,.jpeg,.png" @change="fileChanged"
+                        style="display: none;" />
                 </div>
+                <div v-show="imageSrc" class=" w-64 h-64 mx-auto">
+                    <img ref="img" :src="imageSrc" />
+                </div>
+                <p v-show="imageSrc" class="flex mt-1 mb-0 justify-center font-semibold">
+                    Drag & zoom your picture
+                </p>
+                <p v-show="imageSrc" class="flex mb-1 justify-center text-gray-700" >or</p>
+                <button v-show="imageSrc" class="btn btn-secondary w-full shadow" @click="fileCleared">
+                    Cancel
+                </button>
             </div>
+
             <!-- Profile information -->
-            <form class="row g-3 needs-validation" @submit.prevent="saveChanges" novalidate>
+            <form class="row g-3 needs-validation " @submit.prevent="saveChanges" novalidate>
                 <div class="col-md-6">
                     <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
                     <input v-model="firstName" type="text" class="form-control" id="firstName" placeholder="First Name"
@@ -84,9 +89,9 @@
                     </fieldset>
                 </div>
                 <div>
-                    <button type="button" class="btn btn-secondary shadow rounded signup-button"
+                    <button type="button" class="btn btn-secondary shadow rounded signup-button mt-2"
                         @click.prevent="cancelChanges">Cancel</button>
-                    <button type="submit" class="btn btn-primary shadow rounded signup-button mx-1">Save
+                    <button type="submit" class="btn btn-primary shadow rounded signup-button mx-1 mt-2">Save
                         Changes</button>
                 </div>
             </form>
@@ -95,12 +100,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch, watchEffect } from 'vue';
 import { useRouter } from "vue-router";
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from "vue-toastification";
+import Cropper from 'cropperjs';
 
 const router = useRouter();
 const toast = useToast();
@@ -119,6 +125,7 @@ const firstNameValid = ref(false);
 const lastNameValid = ref(true);
 const usernameValid = ref(false);
 const phoneNumberValid = ref(true);
+const isMobileView = ref(window.innerWidth <= 768);
 
 const errorMessage = ({
     firstName: '',
@@ -127,10 +134,14 @@ const errorMessage = ({
     phoneNumber: ''
 });
 
-const image = ref(null);
-const fileInput = ref(null);
-let uploadedFile = null;
 let storageReference; // Declared storageReference
+
+const imageInput = ref(null);
+const selectedFile = ref(null);
+const imageSrc = ref(null);
+const img = ref(null);
+const fileReader = new FileReader();
+let cropper = null;
 
 const validateForm = () => {
     errorMessage.firstName = '';
@@ -147,7 +158,7 @@ const validateForm = () => {
     if (firstName.value.trim() === '') {
         firstNameValid.value = false;
         errorMessage.firstName = 'First name is required.';
-    } else if(/\d/.test(firstName.value.trim()))  {
+    } else if (/\d/.test(firstName.value.trim())) {
         firstNameValid.value = false;
         errorMessage.firstName = 'First name must contain only letters.';
     } else if (firstName.value.trim().length < 3) {
@@ -161,8 +172,7 @@ const validateForm = () => {
     // Validate Last Name
     if (lastName.value.trim() === '') {
         lastNameValid.value = true;
-    }
-    else if (/\d/.test(lastName.value.trim())){
+    } else if (/\d/.test(lastName.value.trim())) {
         lastNameValid.value = false;
         errorMessage.lastName = 'Last name must contain only letters.';
     } else if (lastName.value.trim().length < 3) {
@@ -207,29 +217,43 @@ const validateForm = () => {
     return true;
 }
 
-const handleButtonClick = () => {
-    fileInput.value.click();
+// Function to handle file reading
+fileReader.onload = (event) => {
+    imageSrc.value = event.target.result;
 };
 
-const handleFileInput = (event) => {
-    const file = event.target.files[0];
-    const reader = new FileReader();
-
-    reader.onload = () => {
-        image.value = reader.result;
-        uploadedFile = file;
-    };
-
-    reader.readAsDataURL(file);
+// Function to handle file selection change
+const fileChanged = (e) => {
+    const files = e.target.files || e.dataTransfer.files;
+    if (files.length) {
+        selectedFile.value = files[0];
+        console.log('Selected file:', selectedFile.value);
+    }
 };
+
+// Function to clear selected file
+const fileCleared = () => {
+    selectedFile.value = null;
+};
+
+const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg'];
 
 const handleDrop = (event) => {
     event.preventDefault();
     const file = event.dataTransfer.files[0];
     const reader = new FileReader();
 
+    if (!validImageTypes.includes(file.type)) {
+        console.error('Invalid file type. Please upload an image file.');
+        toast.error('Invalid file type. Please upload an image file.');
+        return;
+    } else if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size exceeds 5MB. Please upload a smaller image');
+        return;
+    }
+
     reader.onload = () => {
-        image.value = reader.result;
+        imageSrc.value = reader.result;
         uploadedFile = file;
     };
 
@@ -241,7 +265,7 @@ const handleFileUpload = async (file) => {
 
     try {
         // Create a reference to the desired path in Firebase Storage
-        const fileRef = storageRef(storage, `users/${userId}/profilePicture/${file.name}`);
+        const fileRef = storageRef(storage, `users/${userId}/profilePicture/user_photo.jpeg`);
 
         // Upload the file to Firebase Storage
         await uploadBytes(fileRef, file);
@@ -282,11 +306,21 @@ const saveChanges = async () => {
         };
 
         // If there is an image, upload it to Firestore
-        if (uploadedFile) {
-            await handleFileUpload(uploadedFile);
+        if (selectedFile.value) {
+            cropper.getCroppedCanvas({
+                width: 256,
+                height: 256,
+            }).toBlob((blob) => {
+                handleFileUpload(blob);
+            }, 'image/jpeg');
+
             // Add the photoURL to updatedData
             updatedData.photoURL = currentUser.value.photoURL;
+
+            selectedFile.value = null;
+            
         }
+
 
         console.log('Updating user data:', updatedData);
         await updateDoc(userDocRef, updatedData);
@@ -300,8 +334,23 @@ const saveChanges = async () => {
     }
 };
 
+
 onMounted(() => {
     onAuthStateChanged(auth, async (user) => {
+        cropper = new Cropper(img.value, {
+            aspectRatio: 1,
+            minCropBoxWidth: 256,
+            minCropBoxHeight: 256,
+            viewMode: 3,
+            dragMode: 'move',
+            background: false,
+            cropBoxMovable: false,
+            cropBoxResizable: false,
+            guides: false,
+            zoomable: true,
+            wheelZoomRatio: 0.2,
+        });
+
         if (user) {
             const userDocRef = doc(firestore, 'users', user.uid);
             try {
@@ -330,6 +379,27 @@ onMounted(() => {
     storageReference = storageRef(storage, ''); // Initialize storageReference after storage is available
 });
 
+// Destroy Cropper on component unmount
+onUnmounted(() => {
+    cropper.destroy();
+});
+
+// Watch for changes in selectedFile and update imageSrc accordingly
+watchEffect(() => {
+    if (selectedFile.value) {
+        fileReader.readAsDataURL(selectedFile.value);
+    } else {
+        imageSrc.value = null;
+    }
+});
+
+// Watch for changes in imageSrc and update Cropper instance
+watch(imageSrc, () => {
+    if (imageSrc.value) {
+        cropper.replace(imageSrc.value);
+    }
+}, { flush: 'post' });
+
 const viewProfile = () => {
     router.push("/profile");
 };
@@ -338,18 +408,14 @@ const cancelChanges = () => {
     router.push("/profile");
 };
 
-const phoneVerification = () => {
-    toast.warning("Feature under development");
-};
+
 
 const resetPassword = () => {
-    toast.warning("Feature under development");
+    router.push("/profile/reset-password");
 };
 
 
-const activityLog = () => {
-    toast.warning("Feature under development");
-};
+
 </script>
 
 <style scoped>

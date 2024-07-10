@@ -1,5 +1,5 @@
 <template>
-  <div class="container-full p-12">
+  <div class="container-full p-12 shadow-lg">
     <form class="row g-4 needs-validation" @submit.prevent="createTrip" novalidate>
       <!-- Title Field -->
       <div class="col-md-6 px-2">
@@ -38,30 +38,31 @@
       </div>
       <!-- Image Upload Field -->
       <div class="col-md-6 px-2">
-        <label for="image">Upload Image <span class="text-danger">*</span></label>
+        <label for="image">Upload Image </label>
         <input @change="onImageChange" class="form-control" id="image" type="file" accept="image/*"
           :class="{ 'is-valid': imageValid && formSubmitted, 'is-invalid': !imageValid && formSubmitted }"
-          @input="validateForm" required>
+          @input="validateForm" >
         <div class="valid-feedback">Looks good!</div>
         <div class="invalid-feedback">{{ errorMessage.image }}</div>
       </div>
       <!-- Category Picker -->
       <div class="col-md-6 px-2">
-        <label for="category">Category <span class="text-danger">*</span></label>
+        <label for="category">Tags </label>
         <div class="flex items-center space-x-2">
           <select v-model="selectedCategory" id="category" class="form-select custom-select"
           :class="{ 'is-valid': categoriesValid && formSubmitted, 'is-invalid': !categoriesValid && formSubmitted }"
-          @change="validateForm" required>
-            <option value="" disabled class="form-control">Select a category</option>
-            <option v-for="(category, index) in categories" :key="index" :value="category">{{ category.name }}</option>
+          @change="addTag" required>
+            <option value="" disabled class="form-control">Select a tag</option>
+            <option  v-for="(tag, index) in tags" :key="index" :value="tag">{{ tag }}</option>
           </select>
-          <button @click="addCategory" type="button" class="btn w-48 btn-primary shadow rounded">Add Category</button>
+          <input v-model="tagManual" class="form-control" placeholder="Insert manually"></input>
+          <button @click="addTagManually" type="button" class="btn w-48 btn-primary shadow rounded">Add </button>
         </div>
 
         <div class="categories-container">
           <div v-for="(category, index) in selectedCategories" :key="index" class="category-item">
-            <span :style="{ backgroundColor: category.color }" class="category-color"></span>
-            <span class="mr-1">{{ category.name }}</span>
+            <!--<span :style="{ backgroundColor: category.color }" class="category-color"></span>-->
+            <span class="mr-1">{{ category }}</span>
             <button type="button" class="ml-1 bold bi bi-x-lg bi-sm" @click="removeCategory(index)"></button>
           </div>
           <div v-if="!categoriesValid && formSubmitted" class="invalid-format">{{ errorMessage.categories }}</div>
@@ -69,7 +70,7 @@
       </div>
       <!-- Description -->
       <div class="col-md-12">
-        <label for="description">Description <span class="text-danger">*</span></label>
+        <label for="description">Description</label>
         <textarea v-model="description" id="description" rows="4" class="form-control" placeholder="Description"
           :class="{ 'is-valid': descriptionValid && formSubmitted, 'is-invalid': !descriptionValid && formSubmitted }"
           @input="validateForm" required />
@@ -111,6 +112,14 @@ const selectedCategories = ref([]);
 const centerMap = ref();
 const place = ref();
 let image = null;
+const tags = ref([
+  'Adventure', 'Culture', 'Nature', 'Beach', 'Romance', 'Urban', 'Family', 'Friends', 'Group', 
+  'Mountain', 'Desert', 'Countryside', 'Island', 'City', 'Museum', 'Park', 'Zoo', 
+  'Aquarium', 'Theater', 'Cinema', 'Shopping', 'Restaurant', 'Bar', 'Cafe', 'Hotel', 
+  'Camping', 'Resort', 'Spa', 'Photography'
+]);
+
+const tagManual = ref('');
 
 const formSubmitted = ref(false);
 const titleValid = ref(false);
@@ -120,6 +129,9 @@ const endDateValid = ref(false);
 const imageValid = ref(false);
 const categoriesValid = ref(false);
 const descriptionValid = ref(false);
+
+
+
 
 const errorMessage = ({
   title: '',
@@ -182,12 +194,13 @@ const validateForm = () => {
   }
 
   // Validate Image
-  if (!image) {
+  /*if (!image) {
     imageValid.value = false;
     errorMessage.image = "Image is required.";
-  }
+  }*/
 
   // Validate Categories
+  /*
   if (selectedCategories.value.length === 0) {
     categoriesValid.value = false;
     errorMessage.categories = "At least one category is required.";
@@ -199,7 +212,7 @@ const validateForm = () => {
   if (description.value.trim() === "") {
     descriptionValid.value = false;
     errorMessage.description = "Description is required.";
-  }
+  }*/
 
   if (!titleValid.value || !destinationValid.value || !startDateValid.value || !endDateValid.value ||
     !imageValid.value || !categoriesValid.value || !descriptionValid.value) {
@@ -217,7 +230,7 @@ const createTrip = async () => {
   }
 
   // Default image URL
-  let defaultImageUrl = "/src/assets/trip.png";
+  let defaultImageUrl = "/src/assets/defaultImageTrip.jpg";
   let imageUrl = defaultImageUrl; // Initialize imageUrl with default image URL
 
   // Upload image to storage if it exists
@@ -241,7 +254,7 @@ const createTrip = async () => {
     organizer: auth.currentUser.uid,
     members: [auth.currentUser.uid],
     invites: [],
-    categories: selectedCategories.value,
+    tags: selectedCategories.value,
     center: centerMap.value,
     created_at: new Date().toISOString(),
     state: "in progress",
@@ -281,6 +294,24 @@ const addCategory = () => {
       (selectedCategory) => selectedCategory.uid === category.uid
     );
   });
+};
+
+const addTag = () => {
+  console.log('tag', selectedCategory.value);
+  tags.value = tags.value.filter((tag) => tag !== selectedCategory.value);
+  selectedCategories.value.push(selectedCategory.value);
+  selectedCategory.value = "";
+};
+
+const addTagManually = () => {
+  if (tagManual.value !== "") {
+    tags.value.push(tagManual.value);
+    selectedCategories.value.push(tagManual.value);
+    if(tags.value.includes(tagManual.value)){
+      tags.value = tags.value.filter((tag) => tag !== tagManual.value);
+    }
+    tagManual.value = "";
+  }
 };
 
 const removeCategory = (index) => {
@@ -326,6 +357,8 @@ onMounted(() => {
 
 //autocomplete code
 onMounted(async () => {
+
+  tags.value = tags.value.sort((a, b) => a.localeCompare(b));
 
   const loader = new Loader({
     apiKey: import.meta.env.API_KEY,
@@ -418,4 +451,5 @@ label {
   font-size: 90%;
   color: #dc3545; /* Cor vermelha */
 }
+
 </style>

@@ -1,13 +1,25 @@
 <template>
-    <div class="container-full">
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-            <div @click="openEdit(category)" v-for="category in categories" :key="category.id" class="col">
-                <div class="category-item cursor-pointer" :style="{ borderColor: category.color }">
+    <div class="container-full shadow-lg">
+        <h2 class="text-xs text-center mb-4 text-gray-500">
+            <i class="bi bi-info-circle"></i>
+            <span class="ml-2">You can select and delete multiple categories by pressing one first</span>
+        </h2>
+        <div v-if="loading" class="d-flex justify-content-center align-items-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        <div v-else class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            <div v-for="category in categories" :key="category.id" class="col" @mousedown="startPress(category)"
+                @click="handleClick(category)" @mouseup="stopPress(category)" @mouseleave="cancelPress">
+                <div class="category-item cursor-pointer"
+                    :style="{ borderColor: category.color, backgroundColor: isSelected(category) ? '#ddd' : 'transparent', }">
                     <div class="category-square" :style="{ backgroundColor: category.color }"></div>
                     <label class="cursor-pointer" style="font-size: 18px;">{{ category.name }}</label>
                 </div>
             </div>
         </div>
+        <button v-if="isCategorySelected" class="mt-4 ml-2 btn btn-danger" @click="deleteSelected">Delete selected</button>
     </div>
 
     <!-- Pop up -->
@@ -45,13 +57,39 @@
                         <button v-if="props.newCategory" type="button" class="btn btn-primary" @click="createCategory">
                             Create
                         </button>
-                        <button v-else type="button" class="btn btn-primary" @click="editCategory">
+                        <button v-else type="button" class="btn btn-primary" @click="confirmEditCategory">
                             Save
                         </button>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!--Confimation Modal-->
+    <div>
+        <div class="modal" tabindex="-1" style="display: block" v-if="confirmationModal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Category</h5>
+                        <button type="button" class="btn-close" @click="closeConfirmationModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>There are events that are using this category, do you want to update all?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="closeConfirmationModal">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" @click="editCategory">
+                            Update
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
     </div>
 </template>
 
@@ -89,6 +127,121 @@ const formSubmitted = ref(false);
 const nameValid = ref(false);
 const nameErrorMsg = ref("");
 
+const pressInterval = ref(null);
+const isPressing = ref(false);
+const pressTimeout = ref(null);
+const LONG_PRESS_THRESHOLD = 500;
+const selectedCategories = ref([]);
+const isCategorySelected = ref(false);
+const isMobileView = ref(window.innerWidth <= 768);
+const firstTime = ref(false);
+const trips = ref([]);
+const events = ref([]);
+const confirmationModal = ref(false);
+const loading = ref(true);
+
+const startPress = (category) => {
+    isPressing.value = true;
+    pressTimeout.value = setTimeout(() => {
+        if (!selectedCategories.value.includes(category.uid)) {
+            firstTime.value = false;
+            if (selectedCategories.value.length === 0) {
+                firstTime.value = true;
+            }
+            selectedCategories.value.push(category.uid);
+            console.log(`Categoria adicionada: ${category.name}`);
+        }
+        isCategorySelected.value = true;
+    }, LONG_PRESS_THRESHOLD);
+}
+
+const removeDuplicates = () => {
+    selectedCategories.value = [...new Set(selectedCategories.value)];
+};
+
+const stopPress = () => {
+    if (isPressing.value) {
+        clearTimeout(pressTimeout.value);
+        isPressing.value = false;
+    }
+};
+
+const cancelPress = () => {
+    if (isPressing.value) {
+        clearTimeout(pressTimeout.value);
+        clearInterval(pressInterval.value);
+        pressInterval.value = null;
+        isPressing.value = false;
+    }
+};
+
+const handleClick = (category) => {
+    if (firstTime.value) {
+        firstTime.value = false;
+        return;
+    }
+
+    if (selectedCategories.value.length > 0) {
+
+        toggleSelection(category);
+        isPressing.value = false;
+        //removeDuplicates();
+
+    } else {
+        openEdit(category);
+    }
+};
+
+const toggleSelection = (category) => {
+    //if(isPressing.value) return;
+    const index = selectedCategories.value.indexOf(category.uid);
+    if (index === -1) {
+        selectedCategories.value.push(category.uid);
+
+    } else {
+        selectedCategories.value.splice(index, 1);
+    }
+
+    if (selectedCategories.value.length === 0) {
+        isCategorySelected.value = false;
+    }
+};
+
+const isSelected = (category) => {
+    return selectedCategories.value.includes(category.uid);
+};
+
+const deleteSelected = async () => {
+    const eventsCalendarIds = events.value.map((event) => event.calendarId);
+    const eventsToDeleteName = selectedCategories.value.map((category) => {
+        const categoryName = categories.value.find((cat) => cat.uid === category).name;
+        return categoryName.toLowerCase();
+    });
+
+    console.log('Eventos:', eventsCalendarIds);
+    console.log('Categorias:', eventsToDeleteName);
+
+    if (eventsToDeleteName.some((name) => eventsCalendarIds.includes(name))) {
+
+        //dizer quaiss eventos estão sendo usados por nome da trip
+        const categoriesUsedByTrip = events.value.filter((event) => eventsToDeleteName.includes(event.calendarId));
+        console.log('Categorias usadas:', categoriesUsedByTrip);
+
+        toast.error("Some selected categories are being used in events. Please delete the events first");
+        return;
+    } else {
+        selectedCategories.value.forEach(async (category) => {
+            const categoryToDelete = categories.value.find((cat) => cat.uid === category);
+            await deleteDoc(doc(db, "categories", categoryToDelete.uid));
+            categories.value = categories.value.filter((cat) => cat.uid !== categoryToDelete.uid);
+        });
+        selectedCategories.value = [];
+        isCategorySelected.value = false;
+        toast.success("Selected categories deleted successfully");
+    }
+
+};
+
 const validateName = () => {
     nameErrorMsg.value = "";
     nameValid.value = true;
@@ -100,6 +253,9 @@ const validateName = () => {
         nameValid.value = false;
     } else if (name.value.trim().length > 16) {
         nameErrorMsg.value = "Category name must be at most 16 characters long";
+        nameValid.value = false;
+    } else if (categories.value.some((category) => category.name.toLowerCase() === name.value.toLowerCase())) {
+        nameErrorMsg.value = "Category name already exists";
         nameValid.value = false;
     }
 
@@ -139,7 +295,8 @@ async function createCategory() {
     };
 
     const docRef = await addDoc(collection(db, "categories"), category);
-    getCategories();
+    categories.value.push({ uid: docRef.id, ...category });
+    //getCategories();
     closePopUp();
     name.value = "";
     color.value = "#563d7c";
@@ -147,7 +304,20 @@ async function createCategory() {
     toast.success(`Category "${category.name}" created successfully`);
 }
 
+const closeConfirmationModal = () => {
+    confirmationModal.value = false;
+};
+
+const confirmEditCategory = async () => {
+    if(events.value.some((event) => event.calendarId === selectedCategory.value.name.toLowerCase())) {
+        confirmationModal.value = true;
+    }else{
+        editCategory();
+    }
+};
+
 async function editCategory() {
+    closeConfirmationModal();
     const categoryName = name.value.trim(); // Trim whitespace from category name
     const categoryColor = color.value;
     const userId = currentUser.value.uid;
@@ -168,8 +338,22 @@ async function editCategory() {
     };
 
     const docRef = await updateDoc(doc(db, "categories", selectedCategory.value.uid), category);
+    categories.value = categories.value.map((cat) => {
+        if (cat.uid === selectedCategory.value.uid) {
+            return { uid: selectedCategory.value.uid, ...category };
+        }
+        return cat;
+    });
+
+    if(events.value.some((event) => event.calendarId === selectedCategory.value.name.toLowerCase())) {
+        const eventsToUpdate = events.value.filter((event) => event.calendarId === selectedCategory.value.name.toLowerCase());
+        eventsToUpdate.forEach(async (event) => {
+            await updateDoc(doc(db, "events", event.uid), { calendarId: categoryName.toLowerCase() });
+        });
+    }
+
     closePopUp();
-    getCategories();
+    //getCategories();
     name.value = "";
     color.value = "#563d7c";
     // Include category name in the success toast
@@ -177,11 +361,16 @@ async function editCategory() {
 }
 
 async function deleteCategory() {
-    console.log(selectedCategory.value);
+    if(events.value.some((event) => event.calendarId === selectedCategory.value.name.toLowerCase())) {
+        toast.error("This category is being used in events. Please delete the events first");
+        return;
+    }
+
     const categoryName = selectedCategory.value.name;
     await deleteDoc(doc(db, "categories", selectedCategory.value.uid));
+    categories.value = categories.value.filter((category) => category.uid !== selectedCategory.value.uid);
     closePopUp();
-    getCategories();
+    //getCategories();
     selectedCategory.value = null;
     toast.success(`Category "${categoryName}" deleted successfully`);
 }
@@ -201,6 +390,23 @@ async function getCategories() {
     });
 }
 
+const getTrips = async () => {
+    const querySnapshot = await getDocs(query(collection(db, 'trips'), where('organizer', '==', currentUser.value.uid)));
+    querySnapshot.forEach((doc) => {
+        trips.value.push({ uid: doc.id, title: doc.data().title });
+    });
+    getEvents();
+};
+
+const getEvents = async () => {
+    const tripIds = trips.value.map((trip) => trip.uid);
+    const querySnapshot = await getDocs(query(collection(db, 'events'), where('tripId', 'in', tripIds)));
+    querySnapshot.forEach((doc) => {
+        events.value.push({ uid: doc.id, title: doc.data().title, calendarId: doc.data().calendarId });
+    });
+
+};
+
 onMounted(() => {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -211,6 +417,8 @@ onMounted(() => {
                     // Set the currentUser value with the data from Firestore
                     currentUser.value = { uid: user.uid, ...userDocSnapshot.data() };
                     getCategories();
+                    getTrips();
+                    loading.value = false;
                 } else {
                     console.error('User document does not exist');
                 }
