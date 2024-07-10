@@ -49,7 +49,8 @@
             <div class="d-flex cursor-pointer" @click="viewTrip(trip.id)">
               <div id="card" class="bg-gray-100 shadow-md rounded-lg overflow-hidden flex flex-col">
                 <!-- Image -->
-                <img class="w-full h-60 object-cover object-center" :src="trip.imageUrl" :alt="trip.title + ' Trip Image Placeholder'" />
+                <img  v-if="trip.imageUrl==='/src/assets/defaultImageTrip.jpg'"  class="w-full h-60 object-cover object-center" :src="defaultImageTrip"  :alt="'Trip Picture'" />
+                <img v-else class="w-full h-60 object-cover object-center" :src="trip.imageUrl" :alt="trip.title + ' Trip Image Placeholder'" />
                 <div class="pt-4 px-4 pr-4">
                   <!-- Title -->
                   <h3 class="text-xl font-semibold text-gray-700 mb-2">{{ trip.title }}</h3>
@@ -166,6 +167,7 @@ import { getFirestore, collection, query, getDocs, doc, getDoc } from 'firebase/
 import { getStorage, ref as storageRef, getDownloadURL } from 'firebase/storage';
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
+import defaultImageTrip from '@/assets/defaultImageTrip.jpg';
 
 const router = useRouter();
 const toast = useToast();

@@ -29,7 +29,8 @@
             <template v-else>
                 <div v-if="trip" class="d-flex p-4">
                     <div class="col">
-                        <img class="trip-image object-cover object-center mb-4" :src="trip.imageUrl" alt="Trip Picture">
+                        <img v-if="trip.imageUrl==='/src/assets/defaultImageTrip.jpg'" class="trip-image object-cover object-center mb-4"  :src="defaultImageTrip" alt="Trip Picture">
+                        <img v-else class="trip-image object-cover object-center mb-4" :src="trip.imageUrl" alt="Trip Picture">
                         <!-- Categories -->
                         <div class="categories-grid">
                             <div v-for="(tag, index) in trip.tags" :key="index" class="category-item"
@@ -145,7 +146,8 @@
                 </template>
                 <template v-else>
                     <div v-if="trip" class="d-flex flex-column p-4">
-                        <img class="trip-image object-cover object-center mb-4" :src="trip.imageUrl" alt="Trip Picture">
+                        <img v-if="trip.imageUrl==='/src/assets/defaultImageTrip.jpg'" class="trip-image object-cover object-center mb-4"  :src="defaultImageTrip" alt="Trip Picture">
+                        <img v-else class="trip-image object-cover object-center mb-4" :src="trip.imageUrl" alt="Trip Picture">
                         <!-- Categories -->
                         <div class="categories-grid d-flex flex-wrap">
                             <div v-for="(tag, index) in trip.tags" :key="index" class="category-item"
@@ -277,6 +279,7 @@ import { getFirestore, doc, getDoc, updateDoc, getDocs, collection, query, where
 import { getAuth } from 'firebase/auth';
 import { useToast } from "vue-toastification";
 import { Loader } from "@googlemaps/js-api-loader"
+import defaultImageTrip from '@/assets/defaultImageTrip.jpg';
 
 
 const router = useRouter();

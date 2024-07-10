@@ -1611,7 +1611,7 @@ watch(newReservation, async (newValue) => {
 
 async function fetchIATACode(lat, lng) {
   try {
-    const response = await axios.get(`http://iatageo.com/getCode/${lat}/${lng}`);
+    const response = await axios.get(`https://iatageo.com/getCode/${lat}/${lng}`);
     console.log('response', response.data.IATA);
     return response.data.IATA;
   } catch (error) {
