@@ -29,8 +29,11 @@
             <template v-else>
                 <div v-if="trip" class="d-flex p-4">
                     <div class="col">
-                        <img v-if="trip.imageUrl==='/src/assets/defaultImageTrip.jpg'" class="trip-image object-cover object-center mb-4"  :src="defaultImageTrip" alt="Trip Picture">
-                        <img v-else class="trip-image object-cover object-center mb-4" :src="trip.imageUrl" alt="Trip Picture">
+                        <label for="imageInput">
+                            <img :src="defaultImageTrip" v-show="trip.imageUrl === '/src/assets/defaultImageTrip.jpg'" class="trip-image object-cover object-center mb-4 cursor-pointer" alt="Default Trip Picture">
+                            <img :src="trip.imageUrl" v-show="trip.imageUrl !== '/src/assets/defaultImageTrip.jpg'" class="trip-image object-cover object-center mb-4 cursor-pointer" alt="Trip Picture">
+                            <input v-if="isOrganizer" type="file" id="imageInput" ref="imageInput" style="display: none" @change="handleImageChange" accept="image/*">
+                        </label>
                         <!-- Categories -->
                         <div class="categories-grid">
                             <div v-for="(tag, index) in trip.tags" :key="index" class="category-item"
@@ -146,8 +149,11 @@
                 </template>
                 <template v-else>
                     <div v-if="trip" class="d-flex flex-column p-4">
-                        <img v-if="trip.imageUrl==='/src/assets/defaultImageTrip.jpg'" class="trip-image object-cover object-center mb-4"  :src="defaultImageTrip" alt="Trip Picture">
-                        <img v-else class="trip-image object-cover object-center mb-4" :src="trip.imageUrl" alt="Trip Picture">
+                        <label for="imageInput">
+                            <img v-if="trip.imageUrl==='/src/assets/defaultImageTrip.jpg'" class="trip-image object-cover object-center mb-4  cursor-pointer"  :src="defaultImageTrip" alt="Trip Picture">
+                            <img v-else class="trip-image object-cover object-center mb-4  cursor-pointer" :src="trip.imageUrl" alt="Trip Picture">
+                            <input  v-if="isOrganizer" type="file" id="imageInput" ref="imageInput" style="display: none" @change="handleImageChange" accept="image/*">
+                        </label>
                         <!-- Categories -->
                         <div class="categories-grid d-flex flex-wrap">
                             <div v-for="(tag, index) in trip.tags" :key="index" class="category-item"
@@ -280,10 +286,12 @@ import { getAuth } from 'firebase/auth';
 import { useToast } from "vue-toastification";
 import { Loader } from "@googlemaps/js-api-loader"
 import defaultImageTrip from '@/assets/defaultImageTrip.jpg';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, } from "firebase/storage";
 
 
 const router = useRouter();
 const auth = getAuth();
+const storage = getStorage();
 const toast = useToast();
 const tripId = router.currentRoute.value.params.tripId;
 const firestore = getFirestore();
@@ -326,6 +334,28 @@ onMounted(async () => {
 
     getEvents();
 });
+
+
+const handleImageChange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        try {
+        const tripImageRef = storageRef(storage,`trips/${tripId}/image/${file.name}`
+        );
+        await uploadBytes(tripImageRef, file);
+        trip.value.imageUrl = await getDownloadURL(tripImageRef);
+
+        
+            const tripDoc = doc(firestore, 'trips', tripId);
+            const tripData = {
+                imageUrl: trip.value.imageUrl,
+            }
+            await updateDoc(tripDoc, tripData);
+            toast.success("Image updated successfully");
+        } catch (error) {
+            console.error('Error updating trip document:', error);
+        }
+}
 
 const formatted_date = (date) => {
     //datas ao contrario
@@ -584,13 +614,7 @@ const validateForm = () => {
     }
 
 
-    if (!trip.value.description) {
-        errorMessage.description = 'Description is required';
-        descriptionValid.value = false;
-    } else if (trip.value.description.length < 3) {
-        errorMessage.description = 'Description must be at least 3 characters';
-        descriptionValid.value = false;
-    } else if (trip.value.description.length > 50) {
+    if (trip.value.description.length > 50) {
         errorMessage.description = 'Description must be less than 50 characters';
         descriptionValid.value = false;
     }

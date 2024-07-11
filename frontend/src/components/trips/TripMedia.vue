@@ -181,7 +181,7 @@
                 </template>
             </carousel>
 
-            <carousel id="thumbnails" :items-to-show="4" :wrap-around="true" v-model="currentSlide"
+            <carousel v-if="photos.lenght >=3" id="thumbnails" :items-to-show="4" :wrap-around="true" v-model="currentSlide"
                 ref="thumbnailCarousel" class="thumbnail-carousel">
                 <slide v-for="(slide, index) in photos" :key="slide.id">
                     <div class="carousel__item" @click="slideTo(index)">
@@ -388,6 +388,7 @@ const uploadImages = async (event) => {
         await Promise.all(uploadPromises);
         toast.success('All images uploaded successfully');
         closeInserImageModal();
+        fetchPhotos();
     } catch (error) {
         toast.error('Error uploading one or more images');
     }

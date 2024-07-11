@@ -20,7 +20,8 @@
                         <!-- Card for displaying trip information -->
                         <div id="card" class="bg-gray-100 shadow-md rounded-lg overflow-hidden flex flex-col">
                             <!-- Trip image -->
-                            <img class="w-full h-60 object-cover object-center" :src="trip.imageUrl"
+                            <img  v-if="trip.imageUrl==='/src/assets/defaultImageTrip.jpg'" class="w-full h-60 object-cover object-center" :src="defaultImageTrip" />
+                            <img v-else class="w-full h-60 object-cover object-center" :src="trip.imageUrl"
                                 :alt="trip.title + ' Trip Image Placeholder'" />
                             <div class="pt-4 px-4 pr-4">
                                 <!-- Trip title -->
@@ -103,6 +104,7 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage, ref as storageRef } from "firebase/storage";
 import { useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
+import defaultImageTrip from '@/assets/defaultImageTrip.jpg';
 
 const router = useRouter();
 const toast = useToast();
@@ -282,6 +284,7 @@ const acceptInvite = async (trip) => {
             console.error("User ID not found in trip's invites array");
         }
         closeModal();
+        emit("numPendingInvites");
     } catch (error) {
         console.error("Error accepting invite:", error);
         toast.error("Error accepting trip invitation");
@@ -304,6 +307,7 @@ const declineInvite = async (trip) => {
             console.error("User ID not found in trip's invites array");
         }
         closeModal();
+        emit("numPendingInvites");
     } catch (error) {
         console.error("Error declining invite:", error);
         toast.error("Error declining trip invitation");

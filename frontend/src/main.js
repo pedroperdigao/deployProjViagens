@@ -43,5 +43,5 @@ initializeApp(firebaseConfig);
 const app = createApp(App);
 app.use(Toast, toastOptions);
 app.use(router);
-app.provide('socket', io("http://localhost:8080"))
+app.provide('socket', io("https://websocketsprofianl.onrender.com"))
 app.mount('#app');

@@ -318,6 +318,32 @@ watch(router.currentRoute, async (to, from) => {
   if (dropdownOpen.value) {
     dropdownOpen.value = false;
   }
+
+  if(to.path.startsWith('/profile')) {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+      const userDocRef = doc(firestore, "users", user.uid);
+      try {
+        const userDocSnapshot = await getDoc(userDocRef);
+        if (userDocSnapshot.exists()) {
+          currentUser.value = { uid: user.uid, ...userDocSnapshot.data() };
+
+          countTrips();
+        } else {
+          console.error("User document does not exist");
+        }
+      } catch (error) {
+        console.error("Error retrieving user document:", error);
+      }
+    }
+    countTrips();
+    });
+
+  }
+
+  
+
+
 });
 
 const formatarData = (data) => {
