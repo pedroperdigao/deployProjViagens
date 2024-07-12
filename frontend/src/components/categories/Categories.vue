@@ -254,7 +254,7 @@ const validateName = () => {
     } else if (name.value.trim().length > 16) {
         nameErrorMsg.value = "Category name must be at most 16 characters long";
         nameValid.value = false;
-    } else if (categories.value.some((category) => category.name.toLowerCase() === name.value.toLowerCase())) {
+    } else if (categories.value.some(category => category.name.toLowerCase() === name.value.toLowerCase() && category.uid !== selectedCategory.value.uid)) {
         nameErrorMsg.value = "Category name already exists";
         nameValid.value = false;
     }
