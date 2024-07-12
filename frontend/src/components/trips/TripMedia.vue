@@ -181,7 +181,7 @@
                 </template>
             </carousel>
 
-            <carousel v-if="photos.lenght >=3" id="thumbnails" :items-to-show="4" :wrap-around="true" v-model="currentSlide"
+            <carousel v-show="photos.length > 2" id="thumbnails" :items-to-show="4" :wrap-around="true" v-model="currentSlide"
                 ref="thumbnailCarousel" class="thumbnail-carousel">
                 <slide v-for="(slide, index) in photos" :key="slide.id">
                     <div class="carousel__item" @click="slideTo(index)">

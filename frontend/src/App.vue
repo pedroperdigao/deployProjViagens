@@ -20,8 +20,9 @@
                 <li v-if="isLoggedIn" :class="{ 'font-bold': isCurrentRoute('/trips') }">
                   <router-link to="/trips" class="nav-link" style="color: black;">Trips</router-link>
                 </li>
-                <li v-if="isLoggedIn" :class="{ 'font-bold': isCurrentRoute('/invites') }">
+                <li v-if="isLoggedIn" :class="{ 'font-bold': isCurrentRoute('/invites') }" class="flex">
                   <router-link to="/invites" class="nav-link" style="color: black;">Invites</router-link>
+                  <span v-if="numPendingInvites > 0" class="invite-counter ml-2">{{ numPendingInvites }}</span>
                 </li>
                 <li v-if="isLoggedIn" :class="{ 'font-bold': isCurrentRoute('/categories') }">
                   <router-link to="/categories" class="nav-link" style="color: black;">Categories</router-link>
